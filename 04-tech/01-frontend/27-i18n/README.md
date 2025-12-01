@@ -2,470 +2,493 @@
 
 ## 角色设定
 
-你是一位精通前端国际化的专家，擅长多语言支持、日期时间格式化和 RTL 布局。
+你是一位精通前端国际化的专家，擅长多语言支持、日期时间格式化、货币数字本地化和 RTL 布局设计。负责制定国际化方案、翻译管理策略和本地化最佳实践。
+
+## 核心原则 (NON-NEGOTIABLE)
+
+| 原则 | 说明 | 违反后果 |
+|------|------|----------|
+| 翻译键统一管理 | 所有文本必须使用翻译键，禁止硬编码文本内容 | 导致翻译遗漏、维护困难、无法切换语言 |
+| 命名空间隔离 | 按功能模块划分翻译命名空间（common/user/order等） | 翻译文件臃肿、键名冲突、加载性能下降 |
+| 插值参数类型化 | 动态参数使用明确的占位符格式（双花括号） | 翻译内容无法动态替换、显示异常 |
+| 复数规则遵守 | 根据语言特性实现正确的复数形式（英文/中文/阿拉伯语规则不同） | 语法错误、用户体验差、显得不专业 |
+| 日期格式本地化 | 使用 date-fns 或 Intl API 而非硬编码格式 | 日期格式混乱、时区错误、用户困惑 |
+| 回退语言机制 | 配置 fallbackLng 确保缺失翻译时有默认显示 | 显示翻译键名、界面破损、用户无法理解 |
+| RTL 布局适配 | 阿拉伯语/希伯来语等必须支持从右到左布局 | 布局错乱、文本对齐错误、无法正常使用 |
+| 翻译文件结构化 | 采用嵌套对象组织翻译键，避免扁平化结构 | 键名冲突、难以维护、逻辑混乱 |
 
 ## 提示词模板
 
-### 国际化配置
+### 场景一：初始化国际化配置
 
 ```
-请帮我实现国际化功能：
-- 框架：[React/Vue/Next.js]
-- 语言列表：[支持的语言]
-- 翻译方案：[本地文件/远程加载]
-- 特殊需求：[复数/日期/货币]
+请帮我为项目配置国际化功能：
 
-请提供完整的配置和代码。
+【基础信息】
+- 前端框架：[React/Vue/Next.js/Nuxt]
+- 支持语言：[en, zh, ja, ko 等]
+- 默认语言：[en]
+- 回退语言：[en]
+
+【加载策略】
+- 翻译文件来源：[本地静态文件/CDN远程加载/API动态获取]
+- 按需加载策略：[是否启用命名空间懒加载]
+- 缓存位置：[localStorage/sessionStorage/内存]
+
+【检测机制】
+- 语言检测顺序：[URL参数 > localStorage > 浏览器语言 > 默认语言]
+- 是否允许自动检测：[是/否]
+
+【特殊功能】
+- 复数形式支持：[需要/不需要]
+- 日期时间格式化：[需要date-fns/使用Intl API]
+- 货币数字格式化：[需要/不需要]
+- RTL布局支持：[需要支持阿拉伯语/希伯来语]
+
+请提供配置步骤说明和文件组织结构建议。
 ```
 
-## 核心代码示例
+### 场景二：翻译文件管理
 
-### react-i18next 配置
+```
+请帮我设计翻译文件的组织结构：
 
-```typescript
-// i18n/index.ts
-import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
-import LanguageDetector from 'i18next-browser-languagedetector';
-import Backend from 'i18next-http-backend';
+【项目规模】
+- 应用类型：[电商平台/管理后台/营销网站/移动应用]
+- 预计页面数量：[约XX个页面]
+- 预计翻译条目：[预估XX条]
 
-i18n
-  .use(Backend)
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    fallbackLng: 'en',
-    supportedLngs: ['en', 'zh', 'ja', 'ko'],
-    debug: import.meta.env.DEV,
+【模块划分】
+- 主要功能模块：[首页/商品/订单/用户中心/设置]
+- 共享文本类型：[导航菜单/按钮文本/表单验证/错误消息/状态提示]
 
-    interpolation: {
-      escapeValue: false,
-    },
+【文件组织】
+- 命名空间划分方案：[按页面/按功能/混合方式]
+- 嵌套层级建议：[建议最多几层]
+- 键名命名规范：[小驼峰/下划线/点分隔]
 
-    backend: {
-      loadPath: '/locales/{{lng}}/{{ns}}.json',
-    },
-
-    detection: {
-      order: ['localStorage', 'navigator', 'htmlTag'],
-      caches: ['localStorage'],
-    },
-
-    ns: ['common', 'home', 'user', 'order'],
-    defaultNS: 'common',
-
-    react: {
-      useSuspense: true,
-    },
-  });
-
-export default i18n;
+请提供翻译文件结构设计方案和键名组织示例。
 ```
 
-### 翻译文件结构
+### 场景三：日期时间格式化
 
-```json
-// locales/en/common.json
-{
-  "app": {
-    "name": "My Application",
-    "welcome": "Welcome, {{name}}!"
-  },
-  "nav": {
-    "home": "Home",
-    "products": "Products",
-    "cart": "Cart",
-    "profile": "Profile"
-  },
-  "actions": {
-    "save": "Save",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "confirm": "Confirm",
-    "submit": "Submit",
-    "loading": "Loading..."
-  },
-  "messages": {
-    "success": "Operation successful",
-    "error": "An error occurred",
-    "confirm_delete": "Are you sure you want to delete?"
-  },
-  "validation": {
-    "required": "This field is required",
-    "email": "Please enter a valid email",
-    "min_length": "Minimum {{count}} characters required"
-  },
-  "time": {
-    "just_now": "Just now",
-    "minutes_ago": "{{count}} minute ago",
-    "minutes_ago_plural": "{{count}} minutes ago",
-    "hours_ago": "{{count}} hour ago",
-    "hours_ago_plural": "{{count}} hours ago",
-    "days_ago": "{{count}} day ago",
-    "days_ago_plural": "{{count}} days ago"
-  }
-}
+```
+请帮我实现多语言日期时间格式化：
+
+【需求场景】
+- 显示完整日期：[2024年12月1日 / December 1, 2024]
+- 显示短日期：[2024/12/1 / 12/1/2024]
+- 相对时间：[3分钟前 / 3 minutes ago]
+- 时间戳转换：[需要显示具体时间]
+
+【技术选型】
+- 倾向方案：[date-fns + 语言包 / Intl.DateTimeFormat]
+- 时区处理：[需要/不需要时区转换]
+- 性能要求：[是否需要缓存格式化结果]
+
+【语言支持】
+- 目标语言：[en, zh, ja, ko 等]
+
+请提供日期时间格式化的实现方案和使用说明。
 ```
 
-```json
-// locales/zh/common.json
-{
-  "app": {
-    "name": "我的应用",
-    "welcome": "欢迎，{{name}}！"
-  },
-  "nav": {
-    "home": "首页",
-    "products": "商品",
-    "cart": "购物车",
-    "profile": "个人中心"
-  },
-  "actions": {
-    "save": "保存",
-    "cancel": "取消",
-    "delete": "删除",
-    "confirm": "确认",
-    "submit": "提交",
-    "loading": "加载中..."
-  },
-  "messages": {
-    "success": "操作成功",
-    "error": "发生错误",
-    "confirm_delete": "确定要删除吗？"
-  },
-  "validation": {
-    "required": "此字段必填",
-    "email": "请输入有效的邮箱地址",
-    "min_length": "至少需要 {{count}} 个字符"
-  },
-  "time": {
-    "just_now": "刚刚",
-    "minutes_ago": "{{count}} 分钟前",
-    "minutes_ago_plural": "{{count}} 分钟前",
-    "hours_ago": "{{count}} 小时前",
-    "hours_ago_plural": "{{count}} 小时前",
-    "days_ago": "{{count}} 天前",
-    "days_ago_plural": "{{count}} 天前"
-  }
-}
+### 场景四：语言切换功能
+
+```
+请帮我实现语言切换器组件：
+
+【UI展示】
+- 展示形式：[下拉菜单/按钮组/图标+文字]
+- 显示内容：[语言全称/缩写/国旗图标]
+- 当前语言标识：[高亮/选中状态]
+
+【交互逻辑】
+- 切换后行为：[刷新页面/无刷新切换]
+- 持久化存储：[localStorage/cookie]
+- URL同步：[是否需要在URL中体现语言]
+
+【可访问性】
+- 键盘操作支持：[是/否]
+- 屏幕阅读器友好：[需要aria标签]
+
+请提供语言切换器的实现思路和注意事项。
 ```
 
-### React 组件使用
+## 决策指南
 
-```tsx
-// components/Header.tsx
-import { useTranslation } from 'react-i18next';
+### 国际化库选择决策树
 
-export function Header() {
-  const { t, i18n } = useTranslation();
-
-  const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng);
-  };
-
-  return (
-    <header className="flex items-center justify-between p-4">
-      <h1>{t('app.name')}</h1>
-
-      <nav className="flex gap-4">
-        <a href="/">{t('nav.home')}</a>
-        <a href="/products">{t('nav.products')}</a>
-        <a href="/cart">{t('nav.cart')}</a>
-        <a href="/profile">{t('nav.profile')}</a>
-      </nav>
-
-      <div className="flex gap-2">
-        <button
-          onClick={() => changeLanguage('en')}
-          className={i18n.language === 'en' ? 'active' : ''}
-        >
-          EN
-        </button>
-        <button
-          onClick={() => changeLanguage('zh')}
-          className={i18n.language === 'zh' ? 'active' : ''}
-        >
-          中文
-        </button>
-      </div>
-    </header>
-  );
-}
-
-// 带命名空间的使用
-export function UserProfile() {
-  const { t } = useTranslation('user');
-
-  return (
-    <div>
-      <h2>{t('profile.title')}</h2>
-      <p>{t('profile.description')}</p>
-    </div>
-  );
-}
+```
+根据项目框架选择国际化方案
+│
+├─ React 项目
+│  │
+│  ├─ 使用 Next.js 框架
+│  │  └─ 推荐：next-i18next
+│  │     - 原因：SSR/SSG 原生支持、自动路由国际化、SEO友好
+│  │     - 配置路径：next.config.js 中配置 i18n 选项
+│  │     - 页面级加载：通过 getStaticProps/getServerSideProps 加载翻译
+│  │
+│  └─ 使用 CRA 或 Vite
+│     └─ 推荐：react-i18next
+│        - 原因：hooks 友好、生态完善、支持懒加载
+│        - 初始化位置：入口文件初始化 i18n 实例
+│        - 使用方式：useTranslation hook 获取 t 函数
+│
+├─ Vue 项目
+│  │
+│  ├─ 使用 Nuxt 框架
+│  │  └─ 推荐：@nuxtjs/i18n
+│  │     - 原因：Nuxt 模块化集成、自动路由前缀、SEO优化
+│  │     - 配置位置：nuxt.config.ts 中配置 i18n 模块
+│  │     - 组件使用：$t 方法或 useI18n composable
+│  │
+│  └─ 使用 Vue CLI 或 Vite
+│     └─ 推荐：vue-i18n
+│        - 原因：Vue3 Composition API 支持、类型安全
+│        - 安装版本：Vue3 使用 v9.x、Vue2 使用 v8.x
+│        - 使用方式：useI18n composable 或全局 $t 方法
+│
+└─ 原生 JavaScript 项目
+   └─ 推荐：i18next（核心库）
+      - 原因：框架无关、功能完整、插件丰富
+      - 浏览器端：配合 i18next-browser-languagedetector
+      - 后端加载：配合 i18next-http-backend
 ```
 
-### 复数和插值
+### 翻译文件加载策略决策树
 
-```tsx
-// components/Cart.tsx
-import { useTranslation } from 'react-i18next';
-
-export function Cart({ items }) {
-  const { t } = useTranslation();
-
-  return (
-    <div>
-      {/* 插值 */}
-      <h1>{t('app.welcome', { name: 'John' })}</h1>
-
-      {/* 复数 */}
-      <p>
-        {t('cart.items', { count: items.length })}
-        {/* en: "1 item" / "5 items" */}
-        {/* zh: "1 件商品" / "5 件商品" */}
-      </p>
-
-      {/* 嵌套键 */}
-      <span>{t('order.status.pending')}</span>
-
-      {/* 默认值 */}
-      <span>{t('unknown.key', 'Default text')}</span>
-
-      {/* HTML 内容 */}
-      <p
-        dangerouslySetInnerHTML={{
-          __html: t('terms.html', { link: '/terms' }),
-        }}
-      />
-    </div>
-  );
-}
+```
+根据应用场景选择加载方式
+│
+├─ 翻译内容总量 < 100KB
+│  └─ 采用：全量打包到应用代码
+│     - 优点：无网络请求、加载速度快、离线可用
+│     - 缺点：增大打包体积、更新需要重新发版
+│     - 适用：小型应用、翻译内容稳定、追求极致性能
+│
+├─ 翻译内容总量 100KB - 500KB
+│  └─ 采用：按命名空间懒加载
+│     - 优点：首屏加载快、按需加载减少流量
+│     - 缺点：切换语言或页面时有短暂加载延迟
+│     - 适用：中型应用、模块划分清晰、用户停留时间长
+│
+└─ 翻译内容总量 > 500KB 或频繁更新
+   └─ 采用：CDN远程加载 + 缓存
+      - 优点：翻译可独立更新、不影响主应用、减小打包体积
+      - 缺点：依赖网络、需要缓存策略、首次加载慢
+      - 适用：大型应用、翻译频繁调整、多团队协作
+      - 缓存策略：localStorage 持久化 + 版本号校验机制
 ```
 
-### 日期时间格式化
+### 复数规则处理决策
 
-```typescript
-// utils/formatters.ts
-import { format, formatDistance, formatRelative } from 'date-fns';
-import { enUS, zhCN, ja, ko } from 'date-fns/locale';
-import i18n from '../i18n';
-
-const locales: Record<string, Locale> = {
-  en: enUS,
-  zh: zhCN,
-  ja: ja,
-  ko: ko,
-};
-
-export function formatDate(date: Date, pattern = 'PPP'): string {
-  return format(date, pattern, {
-    locale: locales[i18n.language] || enUS,
-  });
-}
-
-export function formatRelativeTime(date: Date): string {
-  return formatDistance(date, new Date(), {
-    addSuffix: true,
-    locale: locales[i18n.language] || enUS,
-  });
-}
-
-// 使用 Intl API
-export function formatNumber(value: number): string {
-  return new Intl.NumberFormat(i18n.language).format(value);
-}
-
-export function formatCurrency(value: number, currency = 'USD'): string {
-  return new Intl.NumberFormat(i18n.language, {
-    style: 'currency',
-    currency,
-  }).format(value);
-}
-
-export function formatPercent(value: number): string {
-  return new Intl.NumberFormat(i18n.language, {
-    style: 'percent',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
+```
+根据目标语言选择复数策略
+│
+├─ 仅支持中文/日文/韩文
+│  └─ 简化处理：无需复数规则
+│     - 原因：这些语言没有单复数变化
+│     - 实现：使用统一翻译键即可
+│     - 示例：「1 件商品」和「5 件商品」使用相同模板
+│
+├─ 包含英文/法文/德文
+│  └─ 标准复数：实现单数/复数两种形式
+│     - 规则：count=1 用单数，count≠1 用复数
+│     - 键名约定：key 和 key_plural
+│     - 示例：「1 item」vs「5 items」
+│
+└─ 包含阿拉伯语/俄语/波兰语
+   └─ 复杂复数：实现多种复数形式
+      - 规则：根据语言特定规则（0/1/2-4/5+）
+      - 库支持：使用 i18next 的 pluralResolver
+      - 示例：阿拉伯语有 6 种复数形式
 ```
 
-### 语言切换器组件
+## 正反对比示例
 
-```tsx
-// components/LanguageSwitch.tsx
-import { useTranslation } from 'react-i18next';
+### 翻译键使用对比
 
-const languages = [
-  { code: 'en', name: 'English', flag: '🇺🇸' },
-  { code: 'zh', name: '中文', flag: '🇨🇳' },
-  { code: 'ja', name: '日本語', flag: '🇯🇵' },
-  { code: 'ko', name: '한국어', flag: '🇰🇷' },
-];
+| ❌ 错误做法 | ✅ 正确做法 | 说明 |
+|------------|------------|------|
+| 直接写中文：`<h1>欢迎使用</h1>` | 使用翻译键：`<h1>{t('app.welcome')}</h1>` | 硬编码无法切换语言 |
+| 混合使用：`<button>Submit</button>` 和 `<button>{t('cancel')}</button>` | 统一使用：所有文本都通过翻译键 | 混合使用导致维护混乱 |
+| 翻译键带语言：`t('welcome_zh')` | 语言无关键：`t('welcome')` + 自动语言切换 | 翻译键不应包含语言标识 |
+| 英文做键名：`t('Welcome to our app')` | 语义化键名：`t('app.welcome_message')` | 长文本做键名难以维护 |
 
-export function LanguageSwitch() {
-  const { i18n } = useTranslation();
+### 命名空间组织对比
 
-  return (
-    <select
-      value={i18n.language}
-      onChange={(e) => i18n.changeLanguage(e.target.value)}
-      className="px-3 py-2 border rounded-lg"
-    >
-      {languages.map((lang) => (
-        <option key={lang.code} value={lang.code}>
-          {lang.flag} {lang.name}
-        </option>
-      ))}
-    </select>
-  );
-}
+| ❌ 错误做法 | ✅ 正确做法 | 说明 |
+|------------|------------|------|
+| 单文件所有翻译：`common.json` 包含所有内容 | 按模块拆分：`common.json`、`user.json`、`order.json` | 单文件过大导致加载缓慢 |
+| 过度拆分：每个页面一个文件（50+个文件） | 合理粒度：按功能域拆分（5-15个文件） | 过度拆分增加管理成本 |
+| 无命名空间：全局平铺所有键 | 明确空间：`useTranslation('user')` 指定命名空间 | 键名容易冲突 |
+
+### 插值参数对比
+
+| ❌ 错误做法 | ✅ 正确做法 | 说明 |
+|------------|------------|------|
+| 字符串拼接：`'欢迎' + userName + '!'` | 插值表达式：`t('welcome', { name: userName })` | 拼接无法适配不同语言的语序 |
+| 单花括号：`{name}` | 双花括号：`{{name}}` | i18next 规范要求双花括号 |
+| 未转义HTML：直接插入用户输入内容 | 安全处理：使用 `interpolation.escapeValue` | 防止XSS攻击 |
+
+### 日期格式化对比
+
+| ❌ 错误做法 | ✅ 正确做法 | 说明 |
+|------------|------------|------|
+| 硬编码格式：`2024-12-01` 固定格式 | 本地化格式：`formatDate(date)` 自动适配语言 | 不同地区日期格式习惯不同 |
+| 字符串拼接：`year + '年' + month + '月'` | date-fns：使用语言包自动格式化 | 拼接无法支持多语言 |
+| 忽略时区：直接显示服务器时间 | 时区转换：转换为用户本地时间 | 时区错误导致用户困惑 |
+
+### 复数处理对比
+
+| ❌ 错误做法 | ✅ 正确做法 | 说明 |
+|------------|------------|------|
+| 条件判断：`count === 1 ? 'item' : 'items'` | 复数键：`t('items', { count })` 自动选择 | 硬编码逻辑无法适配其他语言 |
+| 仅英文复数：只处理英文单复数变化 | 多语言复数：配置各语言复数规则 | 其他语言的复数规则被忽略 |
+
+### RTL布局对比
+
+| ❌ 错误做法 | ✅ 正确做法 | 说明 |
+|------------|------------|------|
+| 固定左对齐：`text-align: left` | 方向感知：`text-align: start` 或使用 `dir` 属性 | RTL语言文本对齐错误 |
+| 硬编码间距：`margin-left: 16px` | 逻辑间距：`margin-inline-start: 16px` | 方向切换时间距不反转 |
+| 忽略方向：不设置 `dir` 属性 | 根节点方向：`<html dir="rtl">` 或 `<div dir="rtl">` | 浏览器无法正确渲染RTL布局 |
+
+### 类型安全对比
+
+| ❌ 错误做法 | ✅ 正确做法 | 说明 |
+|------------|------------|------|
+| 字符串键：`t('unknown.key')` 无类型检查 | 类型定义：声明翻译资源类型获得自动补全 | 拼写错误运行时才发现 |
+| 动态键：`t(dynamicKey)` 无法预测 | 静态键：使用明确的翻译键字符串 | 动态键无法静态分析 |
+
+## 验证清单
+
+### 配置完整性
+
+- [ ] 已配置 fallbackLng 回退语言（通常为 en）
+- [ ] 已配置 supportedLngs 支持的语言列表
+- [ ] 已配置 defaultNS 默认命名空间（通常为 common）
+- [ ] 已配置 ns 数组包含所有命名空间
+- [ ] 已配置 backend 加载路径（如使用远程加载）
+- [ ] 已配置 detection 语言检测顺序和缓存策略
+- [ ] 已配置 interpolation 插值选项（escapeValue 等）
+- [ ] 开发环境已启用 debug 模式便于排查问题
+
+### 翻译文件组织
+
+- [ ] 翻译文件按语言代码组织（en/zh/ja 目录）
+- [ ] 翻译文件按命名空间拆分（common/user/order 等）
+- [ ] 所有语言的翻译文件结构一致（键名相同）
+- [ ] 使用嵌套对象组织翻译键（避免过度扁平化）
+- [ ] 共享文本集中在 common 命名空间
+- [ ] 复数形式使用 _plural 后缀或 count 参数
+- [ ] 插值参数使用双花括号格式 `{{param}}`
+- [ ] 翻译内容无硬编码的语言特定符号
+
+### 功能实现
+
+- [ ] 所有可见文本都通过翻译键获取（无硬编码）
+- [ ] 语言切换后界面完全更新（无残留旧语言文本）
+- [ ] 语言切换后持久化存储（localStorage/cookie）
+- [ ] 缺失翻译键时显示 fallback 内容而非键名
+- [ ] 日期时间使用本地化格式化（date-fns 或 Intl）
+- [ ] 数字货币使用本地化格式化（Intl.NumberFormat）
+- [ ] 复数形式根据 count 参数自动选择
+- [ ] 插值参数正确传递和替换
+
+### RTL支持（如需要）
+
+- [ ] 根元素设置 `dir` 属性（rtl/ltr）
+- [ ] 文本对齐使用 `start/end` 而非 `left/right`
+- [ ] 间距使用逻辑属性（margin-inline-start 等）
+- [ ] Flexbox 布局考虑方向反转
+- [ ] 图标和符号适配 RTL 方向
+- [ ] 输入框光标位置正确
+- [ ] 滚动条位置适配（某些浏览器）
+
+### 性能优化
+
+- [ ] 大型应用启用命名空间懒加载
+- [ ] 翻译文件使用 CDN 加速（如适用）
+- [ ] 翻译内容启用缓存机制
+- [ ] 日期格式化结果缓存（避免重复计算）
+- [ ] 语言切换时避免全量重新渲染
+- [ ] 生产环境禁用 debug 模式
+
+### 类型安全（TypeScript项目）
+
+- [ ] 声明翻译资源类型定义
+- [ ] useTranslation 获得键名自动补全
+- [ ] 插值参数类型检查
+- [ ] 命名空间类型安全
+
+### 测试覆盖
+
+- [ ] 每种支持的语言都手动测试过
+- [ ] 语言切换功能测试通过
+- [ ] 缺失翻译键的降级策略测试
+- [ ] 复数形式各种数量测试（0/1/2/多个）
+- [ ] RTL布局视觉测试（如适用）
+- [ ] 日期时间在不同语言下显示正确
+
+## 护栏约束
+
+### 翻译键命名规则
+
+**必须遵守**
+- 使用小写字母和下划线或点分隔符（user_profile 或 user.profile）
+- 采用语义化命名而非显示文本（使用 submit_button 而非 submit）
+- 命名空间前缀明确（common.actions.save 而非 save）
+- 避免缩写除非行业通用（btn → button）
+
+**禁止行为**
+- 不得使用完整句子作为键名（禁止："Welcome to our application"）
+- 不得在键名中包含语言标识（禁止：welcome_zh、welcome_en）
+- 不得使用特殊字符（禁止：@ # $ % 等）
+- 不得使用数字开头（禁止：1st_step）
+
+### 翻译内容约束
+
+**必须遵守**
+- 插值参数使用双花括号包裹 `{{paramName}}`
+- 复数形式提供完整的变体（单数/复数或更多）
+- HTML内容必须标记为不转义（配置 escapeValue: false 后使用）
+- 翻译内容保持简洁避免过长文本（建议单条 < 200 字符）
+
+**禁止行为**
+- 不得在翻译文本中硬编码日期格式（禁止："2024-12-01"）
+- 不得在翻译中包含业务逻辑（禁止："您有 {{count}} 条消息" 附带处理逻辑）
+- 不得混合多种语言（禁止："Welcome 欢迎"）
+- 不得包含未转义的用户输入（防止 XSS）
+
+### 文件组织约束
+
+**必须遵守**
+- 所有语言的文件结构必须完全一致
+- 新增翻译键必须同步到所有语言文件
+- 命名空间文件大小建议控制在 50KB 以内
+- 使用 JSON 格式确保可解析性
+
+**禁止行为**
+- 不得出现语言文件结构不一致（A语言有的键B语言没有）
+- 不得在单个文件中混合多个命名空间
+- 不得使用嵌套过深的结构（建议最多 3-4 层）
+- 不得提交包含语法错误的 JSON 文件
+
+### 语言切换约束
+
+**必须遵守**
+- 切换语言后必须持久化保存用户选择
+- 语言切换必须立即生效（更新所有可见文本）
+- 必须提供明确的当前语言标识
+- 语言检测失败时必须回退到默认语言
+
+**禁止行为**
+- 不得在切换后需要刷新页面才生效（除非技术限制）
+- 不得切换后丢失用户选择（未持久化）
+- 不得在切换时出现闪烁或布局错乱
+- 不得因语言切换导致数据丢失
+
+## 常见问题诊断表
+
+| 症状 | 可能原因 | 解决方案 |
+|------|---------|---------|
+| 显示翻译键名而非翻译内容 | 翻译文件未加载或键名拼写错误 | 1. 检查 backend 配置路径是否正确<br>2. 检查翻译键是否存在于文件中<br>3. 检查命名空间是否正确指定 |
+| 切换语言后部分文本未更新 | 组件未订阅语言变化或缓存问题 | 1. 确认使用 useTranslation hook<br>2. 检查是否有硬编码文本<br>3. 清除浏览器缓存重试 |
+| 复数形式显示错误 | 未正确配置复数规则或键名错误 | 1. 检查翻译文件中是否有 _plural 后缀的键<<br>2. 确认传递了 count 参数<br>3. 验证语言的复数规则配置 |
+| 插值参数未替换显示 {{name}} | 参数未传递或占位符格式错误 | 1. 检查 t() 函数第二个参数是否传递对象<br>2. 确认占位符使用双花括号<br>3. 验证参数名匹配 |
+| 日期格式不正确 | 未使用本地化格式化或语言包缺失 | 1. 使用 date-fns 的 format 函数<br>2. 导入对应语言的 locale<br>3. 或使用 Intl.DateTimeFormat API |
+| 语言检测失败总是默认英文 | 检测顺序配置错误或缓存冲突 | 1. 检查 detection.order 配置<br>2. 清除 localStorage 中的语言缓存<br>3. 验证浏览器语言设置 |
+| RTL布局错乱 | 未设置 dir 属性或CSS不支持 | 1. 在根元素设置 dir="rtl"<br>2. 使用逻辑CSS属性（margin-inline-start等）<br>3. 测试Flexbox方向 |
+| 翻译文件加载缓慢 | 文件过大或网络问题 | 1. 拆分命名空间启用懒加载<br>2. 使用 CDN 加速<br>3. 启用浏览器缓存 |
+| TypeScript 无类型提示 | 未声明翻译资源类型 | 1. 创建 i18next.d.ts 类型声明文件<br>2. 导入英文翻译文件作为类型<br>3. 声明 CustomTypeOptions 接口 |
+| 生产环境翻译未更新 | 缓存策略导致旧版本翻译 | 1. 翻译文件添加版本号查询参数<br>2. 清除 CDN 缓存<br>3. 更新 backend 加载路径 |
+| 嵌套键访问失败 | 键名拼写错误或层级错误 | 1. 检查翻译文件中嵌套结构<br>2. 使用点分隔符访问（user.profile.name）<br>3. 开启 debug 模式查看详细日志 |
+| 服务端渲染水合不匹配 | 客户端和服务端语言不一致 | 1. 确保 SSR 时传递语言参数<br>2. 使用 serverSideTranslations 加载翻译<br>3. 检查 cookie 中的语言设置 |
+
+## 输出格式要求
+
+### 翻译文件结构规范
+
+**一级结构：按功能域分组**
+```
+应用信息
+├─ app（应用基础信息）
+│  ├─ name（应用名称）
+│  ├─ welcome（欢迎消息）
+│  └─ description（应用描述）
+│
+导航菜单
+├─ nav（导航相关）
+│  ├─ home（首页）
+│  ├─ products（产品）
+│  ├─ cart（购物车）
+│  └─ profile（个人中心）
+│
+操作按钮
+├─ actions（通用操作）
+│  ├─ save（保存）
+│  ├─ cancel（取消）
+│  ├─ delete（删除）
+│  ├─ confirm（确认）
+│  ├─ submit（提交）
+│  └─ loading（加载中）
+│
+系统消息
+├─ messages（系统消息）
+│  ├─ success（成功提示）
+│  ├─ error（错误提示）
+│  └─ confirm_delete（删除确认）
+│
+表单验证
+├─ validation（表单验证）
+│  ├─ required（必填项）
+│  ├─ email（邮箱格式）
+│  └─ min_length（最小长度，带 count 参数）
+│
+时间显示
+└─ time（时间相关）
+   ├─ just_now（刚刚）
+   ├─ minutes_ago（X分钟前，带复数）
+   ├─ hours_ago（X小时前，带复数）
+   └─ days_ago（X天前，带复数）
 ```
 
-### 自定义 Hook
+**命名空间拆分建议**
 
-```typescript
-// hooks/useLocale.ts
-import { useTranslation } from 'react-i18next';
-import { useMemo } from 'react';
+| 命名空间 | 包含内容 | 使用场景 | 预估大小 |
+|---------|---------|---------|---------|
+| common | 全局共享文本（导航/按钮/消息/验证） | 所有页面 | 5-10KB |
+| auth | 认证相关（登录/注册/忘记密码） | 认证流程页面 | 2-5KB |
+| user | 用户模块（个人资料/设置/安全） | 用户中心页面 | 3-8KB |
+| product | 产品模块（列表/详情/筛选/规格） | 产品相关页面 | 5-15KB |
+| order | 订单模块（下单/支付/物流/售后） | 订单流程页面 | 5-12KB |
+| admin | 管理后台（仪表盘/管理/审核） | 后台管理页面 | 10-30KB |
 
-export function useLocale() {
-  const { i18n } = useTranslation();
+**键名命名模式**
 
-  return useMemo(
-    () => ({
-      language: i18n.language,
-      isRTL: ['ar', 'he', 'fa'].includes(i18n.language),
-      dir: ['ar', 'he', 'fa'].includes(i18n.language) ? 'rtl' : 'ltr',
-      changeLanguage: i18n.changeLanguage,
-    }),
-    [i18n]
-  );
-}
+- 简单文本：`key_name`（如：submit_button、cancel_action）
+- 嵌套对象：`category.subcategory.key`（如：user.profile.name）
+- 复数形式：`key` + `key_plural`（英文）或 `key` + count参数（多语言）
+- 插值参数：文本中使用 `{{paramName}}`（如：welcome_message: "Welcome, {{name}}!"）
+- 状态变体：`base_state`（如：status_pending、status_completed）
 
-// hooks/useFormattedDate.ts
-import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-import { formatDate, formatRelativeTime } from '../utils/formatters';
+**文件命名约定**
 
-export function useFormattedDate(date: Date | string) {
-  const { i18n } = useTranslation();
-  const dateObj = useMemo(() => new Date(date), [date]);
+- 语言目录：使用 ISO 639-1 两字母代码（en/zh/ja/ko/fr/de/es）
+- 方言区分：使用连字符（en-US、en-GB、zh-CN、zh-TW）
+- 文件名：小写命名空间名 + .json 扩展名（common.json、user.json）
 
-  return useMemo(
-    () => ({
-      full: formatDate(dateObj, 'PPPPpp'),
-      short: formatDate(dateObj, 'P'),
-      relative: formatRelativeTime(dateObj),
-    }),
-    [dateObj, i18n.language]
-  );
-}
-```
+**版本管理建议**
 
-### Next.js 国际化
+- 翻译文件路径包含版本号：`/locales/v1.2.0/en/common.json`
+- 或使用查询参数控制缓存：`/locales/en/common.json?v=1.2.0`
+- Git 中单独跟踪翻译文件变更
+- 重大翻译调整时记录 changelog
 
-```typescript
-// next.config.js
-module.exports = {
-  i18n: {
-    locales: ['en', 'zh', 'ja'],
-    defaultLocale: 'en',
-    localeDetection: true,
-  },
-};
+---
 
-// pages/index.tsx
-import { GetStaticProps } from 'next';
-import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
-import { useTranslation } from 'next-i18next';
+## 总结
 
-export default function Home() {
-  const { t } = useTranslation('common');
-
-  return (
-    <div>
-      <h1>{t('app.name')}</h1>
-    </div>
-  );
-}
-
-export const getStaticProps: GetStaticProps = async ({ locale }) => {
-  return {
-    props: {
-      ...(await serverSideTranslations(locale ?? 'en', ['common'])),
-    },
-  };
-};
-```
-
-### RTL 支持
-
-```css
-/* styles/rtl.css */
-[dir='rtl'] {
-  direction: rtl;
-  text-align: right;
-}
-
-[dir='rtl'] .flex {
-  flex-direction: row-reverse;
-}
-
-[dir='rtl'] .ml-4 {
-  margin-left: 0;
-  margin-right: 1rem;
-}
-
-[dir='rtl'] .mr-4 {
-  margin-right: 0;
-  margin-left: 1rem;
-}
-```
-
-```tsx
-// App.tsx
-import { useLocale } from './hooks/useLocale';
-
-export function App() {
-  const { dir } = useLocale();
-
-  return (
-    <div dir={dir} className="min-h-screen">
-      {/* 应用内容 */}
-    </div>
-  );
-}
-```
-
-### 类型安全
-
-```typescript
-// types/i18n.d.ts
-import 'i18next';
-import common from '../locales/en/common.json';
-import user from '../locales/en/user.json';
-
-declare module 'i18next' {
-  interface CustomTypeOptions {
-    defaultNS: 'common';
-    resources: {
-      common: typeof common;
-      user: typeof user;
-    };
-  }
-}
-```
-
-## 最佳实践清单
-
-- [ ] 使用命名空间组织翻译
-- [ ] 实现语言自动检测
-- [ ] 支持复数形式
-- [ ] 日期时间本地化
-- [ ] 数字货币格式化
-- [ ] RTL 布局支持
-- [ ] 翻译文件按需加载
-- [ ] 类型安全的翻译键
+国际化是提升应用全球化能力的关键技术。遵循本文档的原则和实践，能够确保多语言支持的完整性、可维护性和用户体验。重点关注翻译键管理、命名空间组织、日期格式化和 RTL 布局适配，避免硬编码文本和格式。通过系统化的翻译管理和严格的验证流程，构建真正国际化的前端应用。

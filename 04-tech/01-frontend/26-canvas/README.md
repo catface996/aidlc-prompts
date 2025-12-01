@@ -1,628 +1,617 @@
 # Canvas 绘图最佳实践
 
-## 角色设定
+## 1. 角色设定
 
-你是一位精通 Canvas 的前端可视化专家，擅长 2D 绘图、图表渲染和交互式图形。
+你是一位精通 Canvas 2D 绘图的前端可视化专家，擅长图表渲染、交互式图形、游戏开发和数据可视化，能够针对不同场景选择最优渲染策略，确保高性能和流畅的用户体验。
 
-## 提示词模板
+---
 
-### Canvas 绘图
+## 2. 核心原则 (NON-NEGOTIABLE)
+
+| 原则 | 说明 | 违反后果 |
+|------|------|----------|
+| **高清屏适配** | 必须使用 devicePixelRatio 设置画布物理像素，避免模糊 | 在高分辨率屏幕上图形模糊不清 |
+| **状态管理** | 修改绘图状态前必须 save()，完成后必须 restore() | 样式污染导致后续绘制异常 |
+| **内存释放** | 不再使用的 Canvas 必须清理引用和取消动画帧 | 内存泄漏导致页面卡顿崩溃 |
+| **事件节流** | 鼠标移动、滚动等高频事件必须节流处理 | CPU 占用过高导致页面无响应 |
+| **离屏渲染** | 复杂图形、重复元素必须预渲染到离屏 Canvas | 每帧重复计算导致性能低下 |
+| **局部重绘** | 只有变化区域才重绘，避免全量清空整个画布 | 不必要的全量渲染浪费性能 |
+| **坐标转换** | 业务坐标必须与 Canvas 坐标分离，通过转换函数映射 | 缩放平移时计算混乱出错 |
+
+---
+
+## 3. 提示词模板
+
+### 3.1 数据可视化图表
 
 ```
-请帮我实现 Canvas 绘图：
-- 图形类型：[图表/游戏/编辑器/数据可视化]
-- 交互需求：[点击/拖拽/缩放]
-- 性能要求：[描述性能需求]
-- 动画需求：[是否需要动画]
+我需要实现一个 Canvas 数据可视化图表：
 
-请提供完整的实现代码。
+**图表类型**：[折线图/柱状图/饼图/散点图/热力图]
+**数据规模**：约 [数量] 个数据点
+**交互需求**：
+- 鼠标悬停显示数值
+- [拖拽平移/滚轮缩放/区域选择]
+- 图例点击显示隐藏系列
+
+**样式要求**：
+- 配色方案：[主题色/渐变色]
+- 网格线：[显示/隐藏]
+- 坐标轴：[显示刻度和标签/隐藏]
+
+**性能约束**：
+- 数据更新频率：每 [X] 秒
+- 目标帧率：[30/60] FPS
+
+请提供实现方案，包括：
+1. Canvas 初始化和高清屏适配方法
+2. 数据到像素坐标的转换逻辑
+3. 绘制流程和图层设计
+4. 交互事件处理方式
+5. 性能优化策略
 ```
 
-## 核心代码示例
+### 3.2 绘图编辑器
 
-### Canvas 基础封装
+```
+我需要实现一个 Canvas 绘图编辑器：
 
-```typescript
-// canvas/CanvasRenderer.ts
-export class CanvasRenderer {
-  private canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
-  private dpr: number;
-  private width: number;
-  private height: number;
+**绘图工具**：[画笔/橡皮擦/图形工具/文字工具]
+**功能需求**：
+- 撤销/重做操作（保留 [N] 步历史）
+- 图层管理
+- 颜色选择器
+- 笔刷粗细调节
+- 导出为 PNG/SVG
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.canvas = canvas;
-    this.ctx = canvas.getContext('2d')!;
-    this.dpr = window.devicePixelRatio || 1;
-    this.resize();
-  }
+**编辑器尺寸**：[宽] x [高] px，支持响应式调整
 
-  resize(): void {
-    const rect = this.canvas.getBoundingClientRect();
-    this.width = rect.width;
-    this.height = rect.height;
+**特殊要求**：
+- 支持触摸设备
+- 笔触平滑处理
+- [需要/不需要] 压感支持
 
-    // 高清屏适配
-    this.canvas.width = this.width * this.dpr;
-    this.canvas.height = this.height * this.dpr;
-    this.ctx.scale(this.dpr, this.dpr);
-  }
-
-  clear(): void {
-    this.ctx.clearRect(0, 0, this.width, this.height);
-  }
-
-  drawRect(x: number, y: number, width: number, height: number, options: DrawOptions = {}): void {
-    this.ctx.save();
-    this.applyOptions(options);
-
-    if (options.fill) {
-      this.ctx.fillRect(x, y, width, height);
-    }
-    if (options.stroke) {
-      this.ctx.strokeRect(x, y, width, height);
-    }
-
-    this.ctx.restore();
-  }
-
-  drawCircle(x: number, y: number, radius: number, options: DrawOptions = {}): void {
-    this.ctx.save();
-    this.applyOptions(options);
-
-    this.ctx.beginPath();
-    this.ctx.arc(x, y, radius, 0, Math.PI * 2);
-
-    if (options.fill) {
-      this.ctx.fill();
-    }
-    if (options.stroke) {
-      this.ctx.stroke();
-    }
-
-    this.ctx.restore();
-  }
-
-  drawLine(points: Point[], options: DrawOptions = {}): void {
-    if (points.length < 2) return;
-
-    this.ctx.save();
-    this.applyOptions(options);
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(points[0].x, points[0].y);
-
-    for (let i = 1; i < points.length; i++) {
-      this.ctx.lineTo(points[i].x, points[i].y);
-    }
-
-    this.ctx.stroke();
-    this.ctx.restore();
-  }
-
-  drawText(text: string, x: number, y: number, options: TextOptions = {}): void {
-    this.ctx.save();
-
-    this.ctx.font = options.font || '14px sans-serif';
-    this.ctx.fillStyle = options.color || '#000';
-    this.ctx.textAlign = options.align || 'left';
-    this.ctx.textBaseline = options.baseline || 'top';
-
-    this.ctx.fillText(text, x, y);
-    this.ctx.restore();
-  }
-
-  private applyOptions(options: DrawOptions): void {
-    if (options.fillColor) {
-      this.ctx.fillStyle = options.fillColor;
-    }
-    if (options.strokeColor) {
-      this.ctx.strokeStyle = options.strokeColor;
-    }
-    if (options.lineWidth) {
-      this.ctx.lineWidth = options.lineWidth;
-    }
-    if (options.lineDash) {
-      this.ctx.setLineDash(options.lineDash);
-    }
-    if (options.shadowColor) {
-      this.ctx.shadowColor = options.shadowColor;
-      this.ctx.shadowBlur = options.shadowBlur || 0;
-      this.ctx.shadowOffsetX = options.shadowOffsetX || 0;
-      this.ctx.shadowOffsetY = options.shadowOffsetY || 0;
-    }
-  }
-}
-
-interface Point {
-  x: number;
-  y: number;
-}
-
-interface DrawOptions {
-  fill?: boolean;
-  stroke?: boolean;
-  fillColor?: string;
-  strokeColor?: string;
-  lineWidth?: number;
-  lineDash?: number[];
-  shadowColor?: string;
-  shadowBlur?: number;
-  shadowOffsetX?: number;
-  shadowOffsetY?: number;
-}
-
-interface TextOptions {
-  font?: string;
-  color?: string;
-  align?: CanvasTextAlign;
-  baseline?: CanvasTextBaseline;
-}
+请说明：
+1. 绘图状态管理方案（历史记录存储）
+2. 笔触平滑算法选择
+3. 坐标转换和触摸事件处理
+4. 导出功能实现方式
 ```
 
-### React Canvas Hook
+### 3.3 游戏/动画
 
-```tsx
-// hooks/useCanvas.ts
-import { useRef, useEffect, useCallback } from 'react';
+```
+我需要实现一个 Canvas 游戏/动画效果：
 
-interface UseCanvasOptions {
-  width?: number;
-  height?: number;
-  onDraw?: (ctx: CanvasRenderingContext2D) => void;
-  animate?: boolean;
-}
+**类型**：[粒子系统/物理模拟/角色动画/过场动画]
+**核心玩法/效果**：[详细描述]
 
-export function useCanvas(options: UseCanvasOptions = {}) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+**性能指标**：
+- 画布尺寸：[宽] x [高] px
+- 元素数量：约 [N] 个
+- 目标帧率：60 FPS
+- 是否需要碰撞检测
 
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+**优化需求**：
+- 移动端适配
+- 低端设备降级方案
+- 节能模式支持（降低不可见时的刷新率）
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    options.onDraw?.(ctx);
-
-    if (options.animate) {
-      animationRef.current = requestAnimationFrame(draw);
-    }
-  }, [options]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-
-    const ctx = canvas.getContext('2d');
-    ctx?.scale(dpr, dpr);
-
-    draw();
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [draw]);
-
-  return canvasRef;
-}
+请提供：
+1. 动画循环架构设计
+2. 对象池管理方案
+3. 碰撞检测优化策略
+4. 移动端性能适配方法
 ```
 
-### 折线图组件
+### 3.4 实时数据监控
 
-```tsx
-// components/LineChart.tsx
-import { useRef, useEffect } from 'react';
+```
+我需要实现一个实时数据监控 Canvas 看板：
 
-interface DataPoint {
-  x: number;
-  y: number;
-  label?: string;
-}
+**数据类型**：[时序数据/实时指标/状态流转]
+**更新频率**：每 [X] 秒推送新数据
+**图表组合**：[多个折线图 + 仪表盘 + 状态指示器]
 
-interface LineChartProps {
-  data: DataPoint[];
-  width?: number;
-  height?: number;
-  padding?: number;
-  lineColor?: string;
-  pointColor?: string;
-  gridColor?: string;
-}
+**显示要求**：
+- 平滑过渡动画
+- 数据超过阈值高亮预警
+- 自动滚动历史数据
 
-export function LineChart({
-  data,
-  width = 600,
-  height = 400,
-  padding = 40,
-  lineColor = '#3b82f6',
-  pointColor = '#3b82f6',
-  gridColor = '#e5e7eb',
-}: LineChartProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+**性能约束**：
+- 同屏最多 [N] 个图表
+- 每个图表最多显示 [N] 个数据点
+- 历史数据保留 [时长]
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || data.length === 0) return;
-
-    const ctx = canvas.getContext('2d')!;
-    const dpr = window.devicePixelRatio || 1;
-
-    // 设置高清屏
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    ctx.scale(dpr, dpr);
-
-    // 计算数据范围
-    const xValues = data.map((d) => d.x);
-    const yValues = data.map((d) => d.y);
-    const xMin = Math.min(...xValues);
-    const xMax = Math.max(...xValues);
-    const yMin = Math.min(...yValues);
-    const yMax = Math.max(...yValues);
-
-    const chartWidth = width - padding * 2;
-    const chartHeight = height - padding * 2;
-
-    // 坐标转换函数
-    const toCanvasX = (x: number) =>
-      padding + ((x - xMin) / (xMax - xMin)) * chartWidth;
-    const toCanvasY = (y: number) =>
-      height - padding - ((y - yMin) / (yMax - yMin)) * chartHeight;
-
-    // 清除画布
-    ctx.clearRect(0, 0, width, height);
-
-    // 绘制网格
-    ctx.strokeStyle = gridColor;
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= 5; i++) {
-      const y = padding + (chartHeight / 5) * i;
-      ctx.beginPath();
-      ctx.moveTo(padding, y);
-      ctx.lineTo(width - padding, y);
-      ctx.stroke();
-    }
-
-    // 绘制折线
-    ctx.strokeStyle = lineColor;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    data.forEach((point, index) => {
-      const x = toCanvasX(point.x);
-      const y = toCanvasY(point.y);
-      if (index === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-    ctx.stroke();
-
-    // 绘制数据点
-    ctx.fillStyle = pointColor;
-    data.forEach((point) => {
-      const x = toCanvasX(point.x);
-      const y = toCanvasY(point.y);
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    // 绘制坐标轴
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(padding, padding);
-    ctx.lineTo(padding, height - padding);
-    ctx.lineTo(width - padding, height - padding);
-    ctx.stroke();
-
-  }, [data, width, height, padding, lineColor, pointColor, gridColor]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{ width, height }}
-    />
-  );
-}
+请说明：
+1. 多图表 Canvas 分层策略
+2. 数据流更新和渲染分离方案
+3. 滚动窗口实现方式
+4. 内存控制策略
 ```
 
-### 画板组件
+---
 
-```tsx
-// components/DrawingBoard.tsx
-import { useRef, useEffect, useState } from 'react';
+## 4. 决策指南
 
-interface DrawingBoardProps {
-  width?: number;
-  height?: number;
-  strokeColor?: string;
-  strokeWidth?: number;
-}
+### 4.1 Canvas vs SVG 选择决策树
 
-export function DrawingBoard({
-  width = 800,
-  height = 600,
-  strokeColor = '#000',
-  strokeWidth = 2,
-}: DrawingBoardProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [history, setHistory] = useState<ImageData[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d')!;
-    const dpr = window.devicePixelRatio || 1;
-
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    ctx.scale(dpr, dpr);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    // 保存初始状态
-    saveState();
-  }, [width, height]);
-
-  const saveState = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d')!;
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(imageData);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  };
-
-  const getCoords = (e: React.MouseEvent) => {
-    const canvas = canvasRef.current!;
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    };
-  };
-
-  const startDrawing = (e: React.MouseEvent) => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-
-    setIsDrawing(true);
-    const { x, y } = getCoords(e);
-
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.strokeStyle = strokeColor;
-    ctx.lineWidth = strokeWidth;
-  };
-
-  const draw = (e: React.MouseEvent) => {
-    if (!isDrawing) return;
-
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-
-    const { x, y } = getCoords(e);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  };
-
-  const stopDrawing = () => {
-    if (isDrawing) {
-      setIsDrawing(false);
-      saveState();
-    }
-  };
-
-  const undo = () => {
-    if (historyIndex <= 0) return;
-
-    const newIndex = historyIndex - 1;
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-
-    ctx.putImageData(history[newIndex], 0, 0);
-    setHistoryIndex(newIndex);
-  };
-
-  const redo = () => {
-    if (historyIndex >= history.length - 1) return;
-
-    const newIndex = historyIndex + 1;
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-
-    ctx.putImageData(history[newIndex], 0, 0);
-    setHistoryIndex(newIndex);
-  };
-
-  const clear = () => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, width, height);
-    saveState();
-  };
-
-  const download = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const link = document.createElement('a');
-    link.download = 'drawing.png';
-    link.href = canvas.toDataURL();
-    link.click();
-  };
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex gap-2">
-        <button onClick={undo} disabled={historyIndex <= 0}>
-          Undo
-        </button>
-        <button onClick={redo} disabled={historyIndex >= history.length - 1}>
-          Redo
-        </button>
-        <button onClick={clear}>Clear</button>
-        <button onClick={download}>Download</button>
-      </div>
-      <canvas
-        ref={canvasRef}
-        style={{ width, height, border: '1px solid #ccc', cursor: 'crosshair' }}
-        onMouseDown={startDrawing}
-        onMouseMove={draw}
-        onMouseUp={stopDrawing}
-        onMouseLeave={stopDrawing}
-      />
-    </div>
-  );
-}
+```
+开始：需要实现图形渲染
+│
+├─ 元素数量 > 1000 个？
+│  ├─ 是 → 使用 Canvas（位图渲染性能更优）
+│  └─ 否 → 继续判断
+│
+├─ 需要频繁动画（30+ FPS）？
+│  ├─ 是 → 使用 Canvas（帧动画性能好）
+│  └─ 否 → 继续判断
+│
+├─ 需要独立操作每个元素（拖拽/删除/修改）？
+│  ├─ 是 → 使用 SVG（DOM 结构便于事件处理）
+│  └─ 否 → 继续判断
+│
+├─ 需要打印或矢量导出？
+│  ├─ 是 → 使用 SVG（矢量无损缩放）
+│  └─ 否 → 继续判断
+│
+├─ 需要像素级操作（滤镜/图像处理）？
+│  ├─ 是 → 使用 Canvas（ImageData 像素操作）
+│  └─ 否 → 使用 SVG（交互和可访问性更好）
 ```
 
-### 粒子动画
+### 4.2 渲染优化策略决策树
 
-```tsx
-// components/ParticleCanvas.tsx
-import { useRef, useEffect } from 'react';
-
-interface Particle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  radius: number;
-  color: string;
-}
-
-export function ParticleCanvas({ width = 800, height = 600 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const particlesRef = useRef<Particle[]>([]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d')!;
-    const dpr = window.devicePixelRatio || 1;
-
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    ctx.scale(dpr, dpr);
-
-    // 创建粒子
-    particlesRef.current = Array.from({ length: 100 }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 2,
-      vy: (Math.random() - 0.5) * 2,
-      radius: Math.random() * 3 + 1,
-      color: `hsl(${Math.random() * 360}, 70%, 50%)`,
-    }));
-
-    let animationId: number;
-
-    const animate = () => {
-      ctx.clearRect(0, 0, width, height);
-
-      particlesRef.current.forEach((particle) => {
-        // 更新位置
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-
-        // 边界反弹
-        if (particle.x <= 0 || particle.x >= width) particle.vx *= -1;
-        if (particle.y <= 0 || particle.y >= height) particle.vy *= -1;
-
-        // 绘制粒子
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-        ctx.fillStyle = particle.color;
-        ctx.fill();
-      });
-
-      // 绘制连线
-      ctx.strokeStyle = 'rgba(100, 100, 100, 0.1)';
-      ctx.lineWidth = 1;
-      particlesRef.current.forEach((p1, i) => {
-        particlesRef.current.slice(i + 1).forEach((p2) => {
-          const dx = p1.x - p2.x;
-          const dy = p1.y - p2.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < 100) {
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
-          }
-        });
-      });
-
-      animationId = requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    return () => cancelAnimationFrame(animationId);
-  }, [width, height]);
-
-  return <canvas ref={canvasRef} style={{ width, height }} />;
-}
+```
+场景：Canvas 渲染性能不足
+│
+├─ 是否全量重绘？
+│  ├─ 是 → 实施局部重绘策略
+│  │      - 使用 clip() 裁剪绘制区域
+│  │      - 维护脏矩形队列
+│  │      - 仅清除和重绘变化区域
+│  └─ 否 → 继续判断
+│
+├─ 是否有静态背景/装饰？
+│  ├─ 是 → 实施分层 Canvas 策略
+│  │      - 背景层：静态元素（最底层）
+│  │      - 内容层：主要业务图形（中间层）
+│  │      - 交互层：鼠标悬停效果（顶层）
+│  └─ 否 → 继续判断
+│
+├─ 是否有复杂的重复图形？
+│  ├─ 是 → 实施离屏渲染缓存
+│  │      - 创建离屏 Canvas 预渲染
+│  │      - 使用 drawImage() 复制到主画布
+│  │      - 仅在样式变更时更新缓存
+│  └─ 否 → 继续判断
+│
+├─ 是否有大量元素需要遍历绘制？
+│  ├─ 是 → 实施空间索引优化
+│  │      - 使用四叉树/网格分割
+│  │      - 仅绘制视口内的元素
+│  │      - 剔除不可见元素
+│  └─ 否 → 继续判断
+│
+├─ 动画元素 > 100 个？
+│  ├─ 是 → 实施对象池管理
+│  │      - 预创建对象避免频繁 new
+│  │      - 复用销毁对象减少 GC
+│  │      - 批量更新状态减少遍历
+│  └─ 否 → 检查其他性能瓶颈（计算/事件处理）
 ```
 
-## 性能优化
+### 4.3 高清屏适配决策
 
-```typescript
-// 离屏 Canvas
-const offscreen = document.createElement('canvas');
-const offCtx = offscreen.getContext('2d')!;
-// 在离屏 canvas 预渲染复杂图形
-ctx.drawImage(offscreen, 0, 0);
+```
+场景：Canvas 在高分辨率屏幕显示模糊
+│
+第一步：设置物理像素
+├─ 获取设备像素比：dpr = window.devicePixelRatio || 1
+├─ 设置画布物理尺寸：
+│  - canvas.width = 显示宽度 × dpr
+│  - canvas.height = 显示高度 × dpr
+└─ 缩放绘图上下文：context.scale(dpr, dpr)
 
-// 分层 Canvas
-// 静态层 + 动态层分离
+第二步：设置 CSS 显示尺寸
+├─ canvas.style.width = '显示宽度px'
+└─ canvas.style.height = '显示高度px'
 
-// 局部重绘
-ctx.save();
-ctx.beginPath();
-ctx.rect(x, y, width, height);
-ctx.clip();
-// 只重绘裁剪区域
-ctx.restore();
+注意事项：
+- 所有绘图坐标使用逻辑像素（CSS 像素）
+- 不要在绘图代码中乘以 dpr
+- 响应式调整时需要重新设置
+```
 
-// 使用 requestAnimationFrame
+---
+
+## 5. 正反对比示例
+
+### 5.1 初始化和高清屏适配
+
+| 错误做法 | 正确做法 | 原因 |
+|----------|----------|------|
+| 直接设置 canvas.width/height 为 CSS 尺寸 | 使用 devicePixelRatio 乘以 CSS 尺寸设置物理像素 | 高分屏会模糊 |
+| 每次绘制前都检查 dpr 并重新设置 | 仅在初始化和 resize 时设置一次 | 避免重复计算 |
+| 忘记调用 context.scale(dpr, dpr) | 设置物理像素后立即缩放上下文 | 坐标系不匹配 |
+| 在 HTML 中硬编码宽高属性 | 通过 JavaScript 动态计算设置 | 无法适配设备 |
+
+### 5.2 状态管理
+
+| 错误做法 | 正确做法 | 原因 |
+|----------|----------|------|
+| 直接修改 fillStyle、strokeStyle 等全局样式 | 使用 save() 和 restore() 包裹样式修改 | 样式污染后续绘制 |
+| 嵌套多层 save() 但只 restore() 一次 | save() 和 restore() 必须成对出现 | 状态栈不平衡 |
+| 在循环内对每个元素都 save/restore | 对同类元素批量绘制，外层 save/restore | 不必要的性能开销 |
+| 忘记 restore() 就修改 transform | 变换操作必须在 save/restore 内 | 坐标系混乱 |
+
+### 5.3 性能优化
+
+| 错误做法 | 正确做法 | 原因 |
+|----------|----------|------|
+| 每帧 clearRect(0, 0, width, height) 全量清除 | 只清除和重绘变化的矩形区域 | 不必要的像素操作 |
+| 复杂图形每帧都重新绘制路径 | 预渲染到离屏 Canvas，用 drawImage 复制 | 重复计算路径浪费 CPU |
+| 所有元素画在一个 Canvas | 静态层和动态层分离为多个 Canvas 叠加 | 静态内容不必重绘 |
+| 使用 setInterval 驱动动画 | 使用 requestAnimationFrame | 不同步显示器刷新率 |
+| 绘制所有数据点包括视口外的 | 通过视口裁剪只绘制可见元素 | 浪费性能绘制不可见内容 |
+
+### 5.4 事件处理
+
+| 错误做法 | 正确做法 | 原因 |
+|----------|----------|------|
+| 直接监听 mousemove 不做节流 | 使用 requestAnimationFrame 或节流函数 | 事件频率过高导致卡顿 |
+| 通过遍历所有元素判断命中 | 使用空间索引（四叉树）快速查找 | 元素多时遍历性能差 |
+| 坐标计算不考虑 CSS 缩放 | 使用 getBoundingClientRect() 换算坐标 | 坐标不准确 |
+| 拖拽时每次都重绘整个画布 | 使用分层 Canvas，只重绘交互层 | 不必要的全量渲染 |
+
+### 5.5 内存管理
+
+| 错误做法 | 正确做法 | 原因 |
+|----------|----------|------|
+| 组件销毁时不取消 requestAnimationFrame | useEffect 返回清理函数取消动画帧 | 内存泄漏 |
+| 历史记录无限制累积 ImageData | 限制历史步数，超出时删除最旧记录 | 内存占用无限增长 |
+| 频繁创建销毁粒子对象 | 使用对象池复用对象 | 频繁 GC 导致卡顿 |
+| 不清理 Canvas 引用 | 组件卸载时置空所有 Canvas 引用 | 阻止垃圾回收 |
+
+---
+
+## 6. 验证清单
+
+### 6.1 初始化检查
+
+- [ ] Canvas 物理像素宽高 = CSS 尺寸 × devicePixelRatio
+- [ ] 调用了 context.scale(dpr, dpr) 缩放上下文
+- [ ] CSS 样式设置了显示宽高
+- [ ] 监听了 window resize 事件并重新初始化
+- [ ] 在 resize 时重新绘制了内容（而不是丢失）
+
+### 6.2 绘制流程检查
+
+- [ ] 修改样式前使用了 save()，完成后 restore()
+- [ ] 每帧开始前清除了上一帧内容（clearRect 或分层）
+- [ ] 路径绘制完成后调用了 stroke() 或 fill()
+- [ ] beginPath() 在新路径开始时被调用
+- [ ] 没有在循环内创建大量临时对象
+
+### 6.3 性能优化检查
+
+- [ ] 使用了 requestAnimationFrame 而非 setInterval
+- [ ] 复杂静态图形预渲染到了离屏 Canvas
+- [ ] 静态背景和动态内容分离为多层 Canvas
+- [ ] 仅重绘变化区域而非全量清除
+- [ ] 视口外的元素被剔除不绘制
+- [ ] 大量元素使用了空间索引（四叉树/网格）
+
+### 6.4 交互处理检查
+
+- [ ] 鼠标移动事件使用了节流或 RAF
+- [ ] 坐标转换考虑了 getBoundingClientRect()
+- [ ] 触摸事件兼容了移动端（preventDefault）
+- [ ] 命中测试使用了高效算法（而非全量遍历）
+- [ ] 拖拽时只重绘必要图层
+
+### 6.5 内存管理检查
+
+- [ ] 组件销毁时取消了 requestAnimationFrame
+- [ ] 组件销毁时移除了事件监听器
+- [ ] 历史记录有最大长度限制
+- [ ] 大量对象使用了对象池管理
+- [ ] 不再使用的 Canvas 引用被清空
+
+### 6.6 用户体验检查
+
+- [ ] 加载大量数据时显示加载指示器
+- [ ] 交互操作提供视觉反馈（hover 效果）
+- [ ] 导出功能可以保存为图片
+- [ ] 支持撤销/重做操作
+- [ ] 移动端触摸体验流畅
+
+---
+
+## 7. 护栏约束
+
+### 7.1 性能约束规则
+
+| 约束项 | 阈值 | 超出后措施 |
+|--------|------|------------|
+| **帧率** | 不低于 30 FPS | 降低渲染精度，启用降级模式 |
+| **绘制元素数** | 单帧不超过 5000 个 | 视口裁剪，只绘制可见区域 |
+| **离屏 Canvas 数量** | 不超过 10 个 | 合并相似图形，使用精灵图 |
+| **历史记录** | 不超过 50 步 | 队列满时删除最旧记录 |
+| **事件回调频率** | mousemove 不超过 60 次/秒 | 使用节流或 RAF 限制 |
+| **Canvas 层数** | 不超过 5 层 | 合并不必要的图层 |
+| **ImageData 缓存** | 单个不超过 10MB | 压缩或降低分辨率 |
+
+### 7.2 兼容性约束
+
+| 特性 | 最低支持版本 | 降级方案 |
+|------|--------------|----------|
+| **Canvas 2D** | IE9+ | 不支持时提示用户升级浏览器 |
+| **devicePixelRatio** | 所有现代浏览器 | 不支持时默认为 1 |
+| **requestAnimationFrame** | IE10+ | 降级到 setTimeout (16ms) |
+| **getImageData** | 所有支持 Canvas 的浏览器 | 注意跨域限制 |
+| **touch 事件** | 所有移动浏览器 | 桌面端降级到鼠标事件 |
+
+### 7.3 资源限制
+
+| 资源 | 限制 | 理由 |
+|------|------|------|
+| **单个 Canvas 尺寸** | 不超过 4096 × 4096 | 部分浏览器/设备有硬件限制 |
+| **总 Canvas 内存** | 不超过 100MB | 避免移动端内存溢出 |
+| **动画对象数** | 不超过 1000 个 | 保证 60 FPS 流畅度 |
+| **历史快照** | 单个不超过 2MB | 撤销功能内存可控 |
+
+---
+
+## 8. 常见问题诊断表
+
+| 症状 | 可能原因 | 解决方案 |
+|------|----------|----------|
+| **图形显示模糊** | 未适配高清屏 | 设置 canvas.width/height = CSS 尺寸 × dpr，并调用 ctx.scale(dpr, dpr) |
+| **动画卡顿掉帧** | 全量重绘或计算量过大 | 1. 分层 Canvas 分离静态动态内容<br>2. 局部重绘<br>3. 离屏缓存复杂图形<br>4. 视口裁剪 |
+| **颜色样式错乱** | 未使用 save/restore 管理状态 | 每次修改样式前 save()，绘制后 restore() |
+| **坐标位置不准** | 未考虑 CSS 缩放或边框 | 使用 getBoundingClientRect() 换算坐标 |
+| **内存持续增长** | 未释放动画帧或历史记录 | 1. 组件销毁时 cancelAnimationFrame<br>2. 限制历史记录数量<br>3. 使用对象池 |
+| **鼠标事件无响应** | 未考虑 Canvas 坐标系转换 | 事件坐标减去画布 offsetLeft/Top |
+| **拖拽不流畅** | mousemove 频率过高 | 使用 requestAnimationFrame 节流 |
+| **移动端无法操作** | 未处理 touch 事件 | 监听 touchstart/touchmove/touchend 并转换坐标 |
+| **导出图片全黑** | Canvas 被污染（跨域图片） | 图片服务器设置 CORS，或使用代理 |
+| **文字显示模糊** | 坐标使用了小数 | 文字绘制坐标使用 Math.round() 取整 |
+| **图形边缘锯齿** | 抗锯齿失效 | 1. 坐标对齐到整数像素<br>2. 避免频繁 scale 变换 |
+| **路径绘制不闭合** | 未调用 closePath() | 路径结束前调用 closePath() |
+| **透明度叠加异常** | globalCompositeOperation 设置错误 | 检查混合模式，默认为 'source-over' |
+| **旋转后位置偏移** | 未设置旋转中心点 | translate 到中心 → rotate → translate 回来 |
+
+---
+
+## 9. 输出格式要求
+
+### 9.1 代码实现输出结构
+
+当需要提供实现代码时，按以下结构组织：
+
+```
+**一、初始化和配置**
+- Canvas 元素创建方式（HTML/动态创建）
+- 高清屏适配代码（计算 dpr，设置尺寸，缩放上下文）
+- 上下文配置（lineCap、lineJoin 等）
+
+**二、数据结构设计**
+- 业务数据模型（如 DataPoint、Particle）
+- 内部状态管理（历史记录、对象池）
+
+**三、坐标转换函数**
+- 业务坐标到 Canvas 像素坐标的映射
+- 鼠标事件坐标到业务坐标的转换
+
+**四、核心绘制函数**
+- 绘制单个元素的方法（矩形、圆形、路径等）
+- 绘制完整场景的流程（清除、绘制、提交）
+
+**五、交互处理**
+- 事件监听器绑定（节流处理）
+- 命中测试逻辑
+- 拖拽/缩放实现
+
+**六、动画循环**
+- requestAnimationFrame 驱动的主循环
+- 状态更新和渲染分离
+
+**七、性能优化**
+- 离屏 Canvas 创建和使用
+- 分层策略实现
+- 视口裁剪逻辑
+
+**八、生命周期管理**
+- 初始化函数
+- 清理函数（取消动画帧、移除监听器）
+```
+
+### 9.2 方案说明输出模板
+
+当提供技术方案时，使用以下模板：
+
+```
+## 方案概述
+[一句话总结方案]
+
+## 架构设计
+**Canvas 层级**：
+- 背景层：[职责]
+- 内容层：[职责]
+- 交互层：[职责]
+
+**数据流**：
+[用户输入] → [数据转换] → [状态更新] → [渲染输出]
+
+## 关键技术点
+
+### 1. 高清屏适配
+[说明具体步骤]
+
+### 2. 坐标系设计
+- 业务坐标系：[定义]
+- Canvas 坐标系：[定义]
+- 转换函数：[公式]
+
+### 3. 渲染优化
+[使用的优化技术和理由]
+
+### 4. 交互实现
+[事件处理流程]
+
+## 性能指标
+- 预期帧率：[X] FPS
+- 最大元素数：[Y]
+- 内存占用：[Z] MB
+
+## 降级方案
+[低端设备或性能不足时的处理]
+
+## 注意事项
+- [关键点 1]
+- [关键点 2]
+```
+
+### 9.3 问题分析输出模板
+
+当分析和解决问题时，使用以下格式：
+
+```
+## 问题现象
+[用户描述的问题]
+
+## 根因分析
+**直接原因**：[技术层面的直接原因]
+**深层原因**：[设计或实现上的根本原因]
+
+## 诊断步骤
+1. [检查项 1] → [预期结果] vs [实际结果]
+2. [检查项 2] → [预期结果] vs [实际结果]
+
+## 解决方案
+
+### 方案一：[名称]
+**实施方法**：[步骤]
+**优点**：[说明]
+**缺点**：[说明]
+**适用场景**：[说明]
+
+### 方案二：[名称]
+[同上结构]
+
+## 推荐方案
+[推荐哪个方案及理由]
+
+## 预防措施
+[如何避免此类问题再次发生]
+```
+
+---
+
+## 10. 实战场景应用
+
+### 10.1 折线图实现要点
+
+**初始化阶段**：
+1. 创建 Canvas 元素并设置高清屏适配
+2. 计算数据的最大最小值确定坐标系范围
+3. 设计坐标转换函数：业务数据 → Canvas 像素
+
+**绘制流程**：
+1. 清除画布：clearRect()
+2. 绘制网格线：使用虚线样式，遍历 X/Y 轴刻度
+3. 绘制坐标轴：底部和左侧实线
+4. 绘制折线：beginPath() → moveTo() → lineTo() → stroke()
+5. 绘制数据点：循环调用 arc() 绘制圆形
+6. 绘制标签：fillText() 显示坐标轴刻度
+
+**交互处理**：
+- 鼠标移动：计算最近数据点，高亮显示并显示 Tooltip
+- 缩放：监听滚轮事件，调整坐标系范围并重绘
+- 拖拽：记录起始坐标，平移坐标系原点
+
+### 10.2 画板编辑器要点
+
+**绘制状态管理**：
+- 当前工具：画笔/橡皮擦/图形工具
+- 当前颜色、粗细、不透明度
+- 历史记录：使用 getImageData() 捕获快照，存储在数组中
+
+**笔触绘制**：
+1. mousedown：beginPath()，moveTo() 起始点
+2. mousemove：lineTo() 连续点，stroke() 绘制
+3. mouseup：结束路径，保存历史快照
+
+**笔触平滑**：
+- 使用贝塞尔曲线平滑：quadraticCurveTo() 或 bezierCurveTo()
+- 采样点过滤：相邻点距离太近则跳过
+- 简化算法：Ramer-Douglas-Peucker 减少点数
+
+**撤销重做**：
+- 维护历史栈和当前索引
+- 撤销：索引减 1，putImageData() 恢复快照
+- 重做：索引加 1，putImageData() 恢复快照
+- 新操作：删除索引后的历史，追加新快照
+
+### 10.3 粒子动画要点
+
+**粒子数据结构**：
+- 位置：x, y
+- 速度：vx, vy
+- 外观：半径、颜色、透明度
+- 生命周期：age, maxAge
+
+**动画循环**：
+```
 function animate() {
-  // 更新和渲染
-  requestAnimationFrame(animate);
+  1. 清除画布（部分清除或全量清除）
+  2. 更新所有粒子状态（位置、速度、生命）
+  3. 移除死亡粒子，从对象池补充新粒子
+  4. 绘制所有粒子
+  5. 绘制粒子间连线（距离小于阈值）
+  6. requestAnimationFrame(animate)
 }
 ```
 
-## 最佳实践清单
+**性能优化**：
+- 对象池：预创建粒子对象，复用而非销毁重建
+- 视口裁剪：仅更新和绘制视口内粒子
+- 降级：低端设备减少粒子数量
+- 空间索引：使用网格分割快速查找邻近粒子
 
-- [ ] 高清屏适配 (devicePixelRatio)
-- [ ] 使用离屏 Canvas 缓存
-- [ ] 分层渲染优化
-- [ ] 局部重绘减少开销
-- [ ] 使用 requestAnimationFrame
-- [ ] 合理管理状态保存/恢复
-- [ ] 事件节流处理
-- [ ] 内存管理和清理
+### 10.4 实时数据监控要点
+
+**多图表架构**：
+- 每个图表独立 Canvas 或共享 Canvas 分区域
+- 静态元素（坐标轴、网格）和动态数据分层
+
+**数据更新策略**：
+- 使用滚动窗口：固定显示最近 N 个数据点
+- 新数据到达时：追加到数组尾部，删除数组头部
+- 平滑过渡：插值动画从旧数据点过渡到新数据点
+
+**性能控制**：
+- 数据推送频率高于帧率时：合并多次更新，一次渲染
+- 多图表独立渲染时机：使用 requestAnimationFrame 统一调度
+- 阈值预警动画：闪烁或高亮效果单独图层处理
+
+**内存管理**：
+- 历史数据定期裁剪：只保留窗口内和导出需要的数据
+- 离屏缓存定期刷新：避免无限累积
+- 图表销毁时清理所有引用
+
+---
+
+## 11. 总结
+
+Canvas 2D 绘图的核心在于：
+
+1. **正确初始化**：高清屏适配是基础，避免模糊
+2. **状态管理**：save/restore 成对使用，避免样式污染
+3. **性能优化**：分层、离屏、局部重绘、视口裁剪
+4. **坐标转换**：业务坐标与 Canvas 坐标分离
+5. **内存控制**：及时清理引用，限制缓存大小
+6. **用户体验**：流畅交互、加载提示、降级方案
+
+遵循本文档的原则、清单和最佳实践，可以构建高性能、可维护的 Canvas 应用。

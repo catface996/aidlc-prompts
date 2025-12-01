@@ -1,515 +1,885 @@
 # Animation 动画最佳实践
 
-## 角色设定
+## 1. 角色设定
 
-你是一位精通前端动画的专家，擅长 CSS 动画、Framer Motion、GSAP 和性能优化。
+你是一位精通前端动画的性能优化专家，专注于使用 CSS 动画、Framer Motion、GSAP 和 React Spring 创建流畅的用户体验。你深刻理解浏览器渲染机制、动画性能优化和用户感知原理，能够在视觉效果与性能之间找到最佳平衡点。
 
-## 提示词模板
+## 2. 核心原则 (NON-NEGOTIABLE)
 
-### 动画实现
+| 原则 | 说明 | 违反后果 |
+|------|------|----------|
+| 性能优先 | 只使用 transform 和 opacity 属性进行动画，避免触发布局重排和重绘 | 动画卡顿、帧率下降、用户体验差、页面滚动不流畅 |
+| 60fps 标准 | 确保所有动画保持 60 帧每秒，单帧耗时不超过 16.67ms | 动画出现明显的掉帧和抖动，影响品牌形象 |
+| GPU 加速 | 对复杂动画启用硬件加速，使用 transform3d 或 translateZ | CPU 负载过高，移动设备发热严重，电池快速消耗 |
+| 无障碍支持 | 必须尊重用户的 prefers-reduced-motion 设置 | 引发用户眩晕不适，违反无障碍标准，可能面临法律风险 |
+| 时长合理性 | 微交互 200-300ms，页面过渡 300-500ms，加载动画 1-2s | 过短显得生硬，过长让用户焦虑等待，降低感知性能 |
+| 渐进增强 | 动画失败时不影响核心功能，保证内容可访问 | 动画库加载失败导致页面不可用，损失核心业务 |
+| 避免同时动画 | 单屏同时动画元素不超过 5 个 | 浏览器主线程阻塞，页面失去响应，用户无法操作 |
+| 内存管理 | 及时清理动画实例和事件监听器 | 内存泄漏，页面长时间使用后崩溃 |
+
+## 3. 提示词模板
+
+### 模板 1: 基础动画实现
 
 ```
-请帮我实现动画效果：
-- 动画类型：[过渡/关键帧/交互/滚动]
-- 技术选择：[CSS/Framer Motion/GSAP]
-- 性能要求：[60fps/低功耗]
-- 具体效果：[描述动画效果]
+请实现以下动画效果：
 
-请提供完整的实现代码。
+【动画类型】
+- 类型：[淡入淡出/滑动/缩放/旋转/弹跳/抖动/脉冲]
+- 触发方式：[页面加载/用户点击/滚动到视口/鼠标悬停]
+- 持续时间：[200-500ms 范围内的具体时长]
+
+【技术选择】
+- 优先方案：{CSS动画/Framer Motion/GSAP/React Spring}
+- 备选方案：{备用技术栈}
+- 选择理由：{基于项目复杂度、团队技能、包体积考虑}
+
+【性能约束】
+- 目标帧率：60fps
+- 是否需要 GPU 加速：{是/否}
+- 同屏最大动画数：{数量}
+
+【无障碍要求】
+- 是否支持 prefers-reduced-motion：是
+- 降级方案：{禁用动画时的替代效果}
+
+请提供：
+1. 动画实现思路（文字描述）
+2. 性能优化策略
+3. 无障碍降级方案
+4. 浏览器兼容性说明
 ```
 
-## 核心代码示例
+### 模板 2: 复杂交互动画
 
-### CSS 动画
+```
+请实现复杂交互动画：
 
-```css
-/* animations.css */
+【交互场景】
+- 场景描述：{拖拽排序/手势滑动/视差滚动/路径动画}
+- 用户操作：{用户如何触发和控制动画}
+- 预期反馈：{用户应该感知到什么效果}
 
-/* 淡入淡出 */
-.fade-enter {
-  opacity: 0;
-}
-.fade-enter-active {
-  opacity: 1;
-  transition: opacity 300ms ease-in;
-}
-.fade-exit {
-  opacity: 1;
-}
-.fade-exit-active {
-  opacity: 0;
-  transition: opacity 300ms ease-out;
-}
+【动画编排】
+- 动画阶段：{初始态 → 过渡态 → 结束态}
+- 时间轴安排：{各阶段的时序关系}
+- 缓动函数：{ease-in/ease-out/ease-in-out/spring/custom}
 
-/* 滑入滑出 */
-.slide-enter {
-  transform: translateX(-100%);
-}
-.slide-enter-active {
-  transform: translateX(0);
-  transition: transform 300ms ease-out;
-}
-.slide-exit {
-  transform: translateX(0);
-}
-.slide-exit-active {
-  transform: translateX(100%);
-  transition: transform 300ms ease-in;
-}
+【技术选型】
+- 推荐技术：{基于交互复杂度选择}
+- 依赖库版本：{具体版本号}
+- 包体积影响：{预估增加的 KB 数}
 
-/* 缩放弹跳 */
-@keyframes bounce {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-}
+【性能边界】
+- 最大拖拽元素数：{数量限制}
+- 滚动监听节流：{节流间隔 ms}
+- 动画取消条件：{何时中断动画}
 
-.bounce {
-  animation: bounce 0.5s ease-in-out;
-}
-
-/* 脉冲效果 */
-@keyframes pulse {
-  0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.05); opacity: 0.8; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-.pulse {
-  animation: pulse 2s infinite ease-in-out;
-}
-
-/* 旋转加载 */
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.spinner {
-  animation: spin 1s linear infinite;
-}
-
-/* 抖动效果 */
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-  20%, 40%, 60%, 80% { transform: translateX(5px); }
-}
-
-.shake {
-  animation: shake 0.5s ease-in-out;
-}
-
-/* 骨架屏闪烁 */
-@keyframes skeleton {
-  0% { background-position: -200px 0; }
-  100% { background-position: calc(200px + 100%) 0; }
-}
-
-.skeleton {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200px 100%;
-  animation: skeleton 1.5s infinite;
-}
+请提供：
+1. 交互状态机设计
+2. 动画时间轴规划
+3. 手势识别策略
+4. 性能监控方案
 ```
 
-### Framer Motion 基础
+### 模板 3: 页面过渡动画
 
-```tsx
-// components/AnimatedComponents.tsx
-import { motion, AnimatePresence } from 'framer-motion';
+```
+请设计页面过渡动画：
 
-// 淡入组件
-export function FadeIn({ children, delay = 0 }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay }}
-    >
-      {children}
-    </motion.div>
-  );
-}
+【过渡场景】
+- 从页面：{来源页面类型}
+- 到页面：{目标页面类型}
+- 导航方式：{前进/后退/替换}
 
-// 列表动画
-export function AnimatedList({ items }) {
-  return (
-    <motion.ul>
-      {items.map((item, index) => (
-        <motion.li
-          key={item.id}
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: index * 0.1 }}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          {item.content}
-        </motion.li>
-      ))}
-    </motion.ul>
-  );
-}
+【过渡效果】
+- 入场动画：{淡入/滑入/缩放入/旋转入}
+- 出场动画：{淡出/滑出/缩放出/旋转出}
+- 共享元素：{是否有元素需要在页面间过渡}
 
-// 页面过渡
-export function PageTransition({ children }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      transition={{ duration: 0.3 }}
-    >
-      {children}
-    </motion.div>
-  );
-}
+【用户体验】
+- 过渡时长：{建议 300-500ms}
+- 加载状态：{如何展示异步加载}
+- 中断处理：{用户快速点击时如何处理}
 
-// 模态框动画
-export function AnimatedModal({ isOpen, onClose, children }) {
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            className="fixed inset-0 bg-black/50 z-40"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
-          <motion.div
-            className="fixed inset-0 flex items-center justify-center z-50"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          >
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
-              {children}
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-}
+【路由集成】
+- 路由方案：{React Router/Next.js/自定义}
+- 集成方式：{描述如何与路由系统配合}
+
+请提供：
+1. 过渡动画设计方案
+2. 路由集成策略
+3. 加载状态处理
+4. 异常场景降级
 ```
 
-### Framer Motion 高级
+### 模板 4: 滚动驱动动画
 
-```tsx
-// components/AdvancedAnimations.tsx
-import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
-import { useRef } from 'react';
+```
+请实现滚动驱动动画：
 
-// 滚动视差
-export function ParallaxSection({ children }) {
-  const ref = useRef(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start end', 'end start'],
-  });
+【滚动效果】
+- 效果类型：{视差滚动/元素淡入/进度指示/固定定位切换}
+- 触发区域：{起始位置到结束位置的滚动百分比}
+- 动画关系：{滚动距离与动画进度的映射关系}
 
-  const y = useTransform(scrollYProgress, [0, 1], [100, -100]);
-  const opacity = useTransform(scrollYProgress, [0, 0.5, 1], [0, 1, 0]);
+【滚动监听】
+- 监听方式：{Intersection Observer/Scroll Event/CSS Scroll-Driven}
+- 性能优化：{使用防抖节流/requestAnimationFrame}
+- 监听范围：{全局滚动/局部容器}
 
-  return (
-    <motion.section ref={ref} style={{ y, opacity }}>
-      {children}
-    </motion.section>
-  );
-}
+【响应式适配】
+- 移动端表现：{触摸滚动的动画效果}
+- 断点调整：{不同屏幕尺寸的差异化}
 
-// 拖拽排序
-export function DraggableList({ items, onReorder }) {
-  return (
-    <motion.ul layout className="space-y-2">
-      {items.map((item) => (
-        <motion.li
-          key={item.id}
-          layout
-          drag="y"
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={0.1}
-          whileDrag={{ scale: 1.02, boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
-          className="bg-white p-4 rounded-lg cursor-grab active:cursor-grabbing"
-        >
-          {item.content}
-        </motion.li>
-      ))}
-    </motion.ul>
-  );
-}
+【边界处理】
+- 初始状态：{页面加载时的动画状态}
+- 快速滚动：{高速滚动时的性能保护}
 
-// 手势动画
-export function GestureCard({ children }) {
-  return (
-    <motion.div
-      className="bg-white p-6 rounded-xl shadow-lg"
-      whileHover={{ scale: 1.02, rotateY: 5 }}
-      whileTap={{ scale: 0.98 }}
-      drag
-      dragConstraints={{ left: -100, right: 100, top: -50, bottom: 50 }}
-      dragElastic={0.2}
-      style={{ perspective: 1000 }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-// 路径动画
-export function PathAnimation() {
-  return (
-    <motion.svg width="200" height="200" viewBox="0 0 200 200">
-      <motion.path
-        d="M 10 80 Q 95 10 180 80"
-        fill="transparent"
-        stroke="#0066ff"
-        strokeWidth="3"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 2, ease: 'easeInOut' }}
-      />
-    </motion.svg>
-  );
-}
-
-// 数字计数动画
-export function AnimatedCounter({ value }) {
-  const spring = useSpring(0, { stiffness: 100, damping: 30 });
-
-  useEffect(() => {
-    spring.set(value);
-  }, [value, spring]);
-
-  return (
-    <motion.span>
-      {spring}
-    </motion.span>
-  );
-}
+请提供：
+1. 滚动监听方案
+2. 动画进度计算逻辑
+3. 性能优化措施
+4. 移动端适配策略
 ```
 
-### GSAP 动画
+### 模板 5: 加载与骨架屏动画
 
-```tsx
-// components/GSAPAnimations.tsx
-import { useEffect, useRef } from 'react';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+```
+请设计加载动画方案：
 
-gsap.registerPlugin(ScrollTrigger);
+【加载场景】
+- 场景类型：{首屏加载/数据请求/组件懒加载/图片加载}
+- 等待时长：{预期加载时间范围}
+- 失败处理：{加载失败时的展示方案}
 
-// 文字逐字动画
-export function TextReveal({ text }) {
-  const containerRef = useRef(null);
+【动画类型】
+- 加载器样式：{旋转圈/进度条/脉冲点/骨架屏}
+- 动画循环：{无限循环/有限次数}
+- 过渡效果：{加载完成后的切换动画}
 
-  useEffect(() => {
-    const chars = containerRef.current.querySelectorAll('.char');
+【用户感知】
+- 心理预期：{如何降低用户的等待焦虑}
+- 进度展示：{是否显示百分比或阶段}
+- 取消机制：{用户是否可以中断加载}
 
-    gsap.fromTo(
-      chars,
-      { opacity: 0, y: 50 },
-      {
-        opacity: 1,
-        y: 0,
-        stagger: 0.05,
-        duration: 0.5,
-        ease: 'power2.out',
-      }
-    );
-  }, []);
+【性能考虑】
+- 动画轻量化：{避免复杂动画增加加载时间}
+- 懒加载策略：{何时开始动画，何时停止}
 
-  return (
-    <div ref={containerRef}>
-      {text.split('').map((char, i) => (
-        <span key={i} className="char inline-block">
-          {char === ' ' ? '\u00A0' : char}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-// 滚动触发动画
-export function ScrollReveal({ children }) {
-  const ref = useRef(null);
-
-  useEffect(() => {
-    gsap.fromTo(
-      ref.current,
-      { opacity: 0, y: 100 },
-      {
-        opacity: 1,
-        y: 0,
-        duration: 1,
-        scrollTrigger: {
-          trigger: ref.current,
-          start: 'top 80%',
-          end: 'top 50%',
-          toggleActions: 'play none none reverse',
-        },
-      }
-    );
-  }, []);
-
-  return <div ref={ref}>{children}</div>;
-}
-
-// 时间轴动画
-export function Timeline() {
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const tl = gsap.timeline({ defaults: { duration: 0.5 } });
-
-    tl.from('.box-1', { x: -100, opacity: 0 })
-      .from('.box-2', { y: 100, opacity: 0 }, '-=0.3')
-      .from('.box-3', { x: 100, opacity: 0 }, '-=0.3')
-      .from('.title', { scale: 0, opacity: 0 });
-
-    return () => tl.kill();
-  }, []);
-
-  return (
-    <div ref={containerRef}>
-      <div className="box-1">Box 1</div>
-      <div className="box-2">Box 2</div>
-      <div className="box-3">Box 3</div>
-      <h1 className="title">Title</h1>
-    </div>
-  );
-}
-
-// 固定滚动动画
-export function PinnedSection() {
-  const ref = useRef(null);
-
-  useEffect(() => {
-    gsap.to('.progress', {
-      width: '100%',
-      scrollTrigger: {
-        trigger: ref.current,
-        start: 'top top',
-        end: 'bottom bottom',
-        pin: true,
-        scrub: 1,
-      },
-    });
-  }, []);
-
-  return (
-    <div ref={ref} className="h-[200vh]">
-      <div className="sticky top-0 h-screen flex items-center justify-center">
-        <div className="w-full h-2 bg-gray-200">
-          <div className="progress h-full bg-blue-500 w-0" />
-        </div>
-      </div>
-    </div>
-  );
-}
+请提供：
+1. 加载动画设计方案
+2. 骨架屏结构规划
+3. 加载状态管理
+4. 超时与错误处理
 ```
 
-### React Spring
+## 4. 决策指南
 
-```tsx
-// components/SpringAnimations.tsx
-import { useSpring, useSprings, animated, useTrail } from '@react-spring/web';
+### 动画技术选择决策树
 
-// 基础弹簧动画
-export function SpringBox({ isActive }) {
-  const spring = useSpring({
-    transform: isActive ? 'scale(1.1)' : 'scale(1)',
-    backgroundColor: isActive ? '#3b82f6' : '#e5e7eb',
-  });
-
-  return <animated.div style={spring} className="w-20 h-20 rounded-lg" />;
-}
-
-// 交错动画
-export function TrailList({ items, open }) {
-  const trail = useTrail(items.length, {
-    opacity: open ? 1 : 0,
-    transform: open ? 'translateY(0)' : 'translateY(20px)',
-    config: { mass: 1, tension: 280, friction: 60 },
-  });
-
-  return (
-    <ul>
-      {trail.map((style, index) => (
-        <animated.li key={items[index].id} style={style}>
-          {items[index].content}
-        </animated.li>
-      ))}
-    </ul>
-  );
-}
-
-// 卡片翻转
-export function FlipCard({ front, back }) {
-  const [flipped, setFlipped] = useState(false);
-
-  const { transform, opacity } = useSpring({
-    transform: `perspective(600px) rotateY(${flipped ? 180 : 0}deg)`,
-    opacity: flipped ? 0 : 1,
-    config: { mass: 5, tension: 500, friction: 80 },
-  });
-
-  return (
-    <div className="relative w-64 h-40" onClick={() => setFlipped(!flipped)}>
-      <animated.div
-        className="absolute w-full h-full bg-blue-500 rounded-lg"
-        style={{ opacity, transform }}
-      >
-        {front}
-      </animated.div>
-      <animated.div
-        className="absolute w-full h-full bg-green-500 rounded-lg"
-        style={{
-          opacity: opacity.to((o) => 1 - o),
-          transform: transform.to((t) => `${t} rotateY(180deg)`),
-        }}
-      >
-        {back}
-      </animated.div>
-    </div>
-  );
-}
+```
+动画需求
+├─ 是否为简单的过渡效果（淡入淡出、位移、缩放）？
+│  ├─ 是 → 使用 CSS 动画
+│  │      ├─ 优势：性能最佳、无需 JS、包体积零、硬件加速
+│  │      ├─ 适用场景：
+│  │      │   ├─ 悬停状态切换
+│  │      │   ├─ 页面元素淡入
+│  │      │   ├─ 加载指示器旋转
+│  │      │   └─ 按钮点击反馈
+│  │      └─ 限制：无法响应复杂交互逻辑
+│  │
+│  └─ 否 → 继续判断
+│
+├─ 是否需要复杂的手势交互（拖拽、滑动、捏合）？
+│  ├─ 是 → 使用 Framer Motion
+│  │      ├─ 优势：声明式 API、手势支持完善、布局动画
+│  │      ├─ 适用场景：
+│  │      │   ├─ 拖拽排序列表
+│  │      │   ├─ 卡片滑动删除
+│  │      │   ├─ 模态框拖拽关闭
+│  │      │   └─ 共享元素过渡
+│  │      ├─ 包体积：约 40KB gzipped
+│  │      └─ 集成：与 React 深度集成
+│  │
+│  └─ 否 → 继续判断
+│
+├─ 是否需要精确的时间轴控制和复杂动画序列？
+│  ├─ 是 → 使用 GSAP
+│  │      ├─ 优势：功能最强大、时间轴精确、插件丰富
+│  │      ├─ 适用场景：
+│  │      │   ├─ 复杂的页面入场动画
+│  │      │   ├─ SVG 路径动画
+│  │      │   ├─ 滚动触发的编排动画
+│  │      │   └─ 文字逐字显示效果
+│  │      ├─ 包体积：核心库 ~50KB，按需加载插件
+│  │      ├─ 性能：高度优化，支持大量元素动画
+│  │      └─ 学习曲线：相对陡峭，但功能全面
+│  │
+│  └─ 否 → 继续判断
+│
+└─ 是否追求极致的物理弹性效果？
+   ├─ 是 → 使用 React Spring
+   │      ├─ 优势：基于物理的弹簧动画、插值功能强大
+   │      ├─ 适用场景：
+   │      │   ├─ 弹性卡片交互
+   │      │   ├─ 自然的数值过渡
+   │      │   ├─ 列表项的交错动画
+   │      │   └─ 状态驱动的连续动画
+   │      ├─ 包体积：约 25KB gzipped
+   │      └─ 特点：声明式 hooks API，动画可中断
+   │
+   └─ 否 → 组合使用
+          ├─ CSS 处理简单过渡
+          ├─ Framer Motion 处理交互
+          └─ 按需引入其他库
 ```
 
-### 性能优化
+### 性能优化决策树
 
-```tsx
-// 使用 will-change
-const optimizedStyle = {
-  willChange: 'transform, opacity',
-  transform: 'translateZ(0)', // 开启 GPU 加速
-};
-
-// 使用 CSS containment
-const containedStyle = {
-  contain: 'layout paint',
-};
-
-// 减少重排的动画
-// ✅ 好：使用 transform 和 opacity
-transform: 'translateX(100px)';
-opacity: 0.5;
-
-// ❌ 差：触发重排的属性
-left: '100px';
-width: '200px';
+```
+动画性能问题
+├─ 是否出现明显卡顿（帧率低于 30fps）？
+│  ├─ 是 → 检查动画属性
+│  │      ├─ 是否使用了 left/top/width/height？
+│  │      │  └─ 是 → 改用 transform 和 opacity
+│  │      ├─ 是否同时动画超过 10 个元素？
+│  │      │  └─ 是 → 减少动画元素或使用交错延迟
+│  │      └─ 是否触发了大面积重绘？
+│  │         └─ 是 → 使用 will-change 或 contain 属性
+│  │
+│  └─ 否 → 继续判断
+│
+├─ 是否移动设备发热严重？
+│  ├─ 是 → 检查 GPU 使用
+│  │      ├─ 是否开启了硬件加速？
+│  │      │  └─ 否 → 添加 transform: translateZ(0)
+│  │      ├─ 动画是否一直运行？
+│  │      │  └─ 是 → 在不可见时暂停动画
+│  │      └─ 是否使用了复杂的 filter 或 backdrop-filter？
+│  │         └─ 是 → 简化效果或使用静态替代
+│  │
+│  └─ 否 → 继续判断
+│
+├─ 是否首次加载时动画延迟？
+│  ├─ 是 → 优化加载策略
+│  │      ├─ 动画库是否按需加载？
+│  │      │  └─ 否 → 使用动态导入和代码分割
+│  │      ├─ 是否等待了所有资源加载？
+│  │      │  └─ 是 → 使用骨架屏先渲染占位
+│  │      └─ 动画库包体积是否过大？
+│  │         └─ 是 → 切换到更轻量的方案或只导入必需模块
+│  │
+│  └─ 否 → 继续判断
+│
+└─ 是否滚动时动画卡顿？
+   ├─ 是 → 优化滚动监听
+   │      ├─ 是否使用了滚动事件监听？
+   │      │  └─ 是 → 改用 Intersection Observer
+   │      ├─ 是否添加了节流/防抖？
+   │      │  └─ 否 → 添加 requestAnimationFrame 节流
+   │      └─ 是否在滚动时触发布局计算？
+   │         └─ 是 → 缓存计算结果，避免强制同步布局
+   │
+   └─ 否 → 性能已达标，考虑视觉优化
 ```
 
-## 最佳实践清单
+## 5. 正反对比示例
 
-- [ ] 优先使用 transform 和 opacity
-- [ ] 开启 GPU 加速
-- [ ] 使用 requestAnimationFrame
-- [ ] 避免同时动画过多元素
-- [ ] 使用 will-change 提示浏览器
-- [ ] 减少重排重绘
-- [ ] 设置合理的动画时长 (200-500ms)
-- [ ] 支持 prefers-reduced-motion
+### 动画属性选择
+
+| 场景 | ❌ 错误做法 | ✅ 正确做法 |
+|------|-----------|-----------|
+| 水平移动 | 使用 left 或 margin-left 属性，触发布局重排，性能差 | 使用 transform: translateX()，仅触发合成，性能优 |
+| 垂直移动 | 使用 top 或 margin-top 属性，阻塞主线程 | 使用 transform: translateY()，GPU 加速 |
+| 元素缩放 | 修改 width 和 height，导致子元素重新计算 | 使用 transform: scale()，不影响布局 |
+| 透明度变化 | 正确使用 opacity 属性（两者相同） | 正确使用 opacity 属性（两者相同） |
+| 元素旋转 | 使用 CSS transform rotate 模拟，但在 JS 中计算角度 | 直接使用 transform: rotate() 或动画库 |
+| 颜色过渡 | 频繁修改 backgroundColor 且元素很多时性能差 | 少量元素可直接过渡，大量元素考虑用 opacity 遮罩 |
+
+### 性能优化策略
+
+| 场景 | ❌ 错误做法 | ✅ 正确做法 |
+|------|-----------|-----------|
+| GPU 加速 | 不添加任何提示，依赖浏览器自动判断 | 添加 transform: translateZ(0) 或 will-change: transform |
+| will-change 使用 | 在所有元素上永久设置 will-change，浪费内存 | 仅在动画开始前添加，结束后移除 |
+| 动画数量 | 页面加载时同时启动 50 个元素的动画 | 使用交错延迟，每次只动画 5-10 个元素 |
+| 滚动监听 | 直接监听 scroll 事件，每次滚动都执行计算 | 使用 Intersection Observer 或添加节流 |
+| 动画清理 | 组件卸载时不清理动画实例和定时器 | 在 useEffect cleanup 或 componentWillUnmount 中清理 |
+| 内存管理 | 保持所有动画元素的引用，即使不可见 | 元素离开视口时暂停或销毁动画 |
+
+### 用户体验设计
+
+| 场景 | ❌ 错误做法 | ✅ 正确做法 |
+|------|-----------|-----------|
+| 动画时长 | 微交互使用 1 秒以上，让用户感觉迟钝 | 微交互 200-300ms，快速响应 |
+| 页面过渡 | 页面切换动画超过 800ms，用户焦虑 | 页面过渡 300-500ms，流畅自然 |
+| 加载动画 | 无限旋转无反馈，用户不知道进度 | 显示进度百分比或阶段提示 |
+| 无障碍 | 忽略 prefers-reduced-motion，强制播放动画 | 检测设置，提供静态或简化版本 |
+| 缓动函数 | 所有动画都用 linear，显得机械 | 根据场景选择 ease-in-out/spring |
+| 动画中断 | 用户快速点击时动画叠加或错乱 | 中断当前动画，立即切换到新状态 |
+
+### 技术选型决策
+
+| 场景 | ❌ 错误做法 | ✅ 正确做法 |
+|------|-----------|-----------|
+| 简单淡入 | 引入 60KB 的动画库实现基础淡入效果 | 使用 CSS transition，零成本 |
+| 复杂编排 | 用 CSS 动画实现 10 步时间轴，难以维护 | 使用 GSAP Timeline，代码清晰 |
+| 拖拽交互 | 自己实现所有手势识别逻辑，bug 多 | 使用 Framer Motion 的 drag 功能 |
+| 滚动视差 | 监听 scroll 事件，手动计算所有位置 | 使用 GSAP ScrollTrigger 插件 |
+| 物理动画 | 用 easing 函数模拟弹簧效果，不自然 | 使用 React Spring 的物理引擎 |
+| 路由过渡 | 在每个页面组件中重复写动画逻辑 | 使用 Framer Motion 的 AnimatePresence |
+
+### 代码组织方式
+
+| 场景 | ❌ 错误做法 | ✅ 正确做法 |
+|------|-----------|-----------|
+| 动画复用 | 在每个组件中写重复的动画配置 | 提取动画配置到常量对象或自定义 hooks |
+| 配置管理 | 动画参数硬编码在组件内部 | 使用配置文件集中管理时长、缓动等 |
+| 条件动画 | 用复杂的 if-else 判断不同状态的动画 | 使用状态机或 variants 模式 |
+| 动画组合 | 将多个动画逻辑混杂在一个组件中 | 拆分为独立的动画组件或 hooks |
+| 测试 | 不为动画编写测试，依赖手动验证 | 测试动画触发条件和状态转换逻辑 |
+| 文档 | 不记录动画参数的选择理由 | 注释说明时长、缓动选择的原因 |
+
+## 6. 验证清单
+
+### 性能验证
+
+- [ ] 使用 Chrome DevTools Performance 面板录制动画，确认帧率稳定在 60fps
+- [ ] 检查是否有绿色的 Composite Layers，确认 GPU 加速生效
+- [ ] 查看 Layers 面板，确认动画元素被提升为独立图层
+- [ ] 使用 Rendering 面板的 Paint Flashing，确认没有不必要的重绘
+- [ ] 使用 Layout Shift 检查，确认没有意外的布局移动
+- [ ] 在移动设备上测试，使用 CPU 和 GPU 节流模拟低端设备
+- [ ] 检查 Memory 面板，确认动画结束后内存正确释放
+- [ ] 长时间运行动画，观察是否有内存泄漏
+
+### 用户体验验证
+
+- [ ] 所有微交互响应时间在 200-300ms 内
+- [ ] 页面过渡动画时长在 300-500ms 范围
+- [ ] 加载动画在 2 秒后显示进度或提示信息
+- [ ] 快速连续点击时动画不会叠加或错乱
+- [ ] 动画中断时能够平滑切换到新状态
+- [ ] 首次交互延迟（First Input Delay）小于 100ms
+- [ ] 动画不会遮挡重要的操作按钮
+- [ ] 加载动画不会让用户产生超过 3 秒的等待焦虑
+
+### 无障碍验证
+
+- [ ] 检测 prefers-reduced-motion 媒体查询
+- [ ] 在系统设置中开启减弱动态效果，验证降级方案
+- [ ] 动画失败时内容仍然可访问和可读
+- [ ] 焦点管理不受动画影响，键盘导航正常
+- [ ] 屏幕阅读器能够正确播报状态变化
+- [ ] 动画不会引发光敏性癫痫（避免快速闪烁）
+- [ ] 提供暂停或停止自动播放动画的选项
+
+### 兼容性验证
+
+- [ ] 在 Chrome、Firefox、Safari、Edge 最新版本测试
+- [ ] 在 iOS Safari 和 Android Chrome 移动浏览器测试
+- [ ] 测试低版本浏览器的降级方案（如不支持某些 CSS 特性）
+- [ ] 验证 CSS 前缀是否正确添加（使用 Autoprefixer）
+- [ ] 检查动画库的浏览器兼容性声明
+- [ ] 测试在 React 严格模式下的表现
+- [ ] 验证服务端渲染场景下的动画行为
+
+### 代码质量验证
+
+- [ ] 动画组件已提取为可复用的模块
+- [ ] 动画配置参数已集中管理
+- [ ] 所有动画实例在组件卸载时正确清理
+- [ ] 事件监听器正确添加和移除
+- [ ] 动画相关的副作用在 useEffect 中正确处理
+- [ ] 添加了必要的代码注释说明动画意图
+- [ ] 通过 ESLint 检查，没有动画相关的警告
+- [ ] TypeScript 类型定义完整（如适用）
+
+### 打包优化验证
+
+- [ ] 动画库使用按需导入，避免打包整个库
+- [ ] 使用 webpack-bundle-analyzer 分析动画库体积
+- [ ] 非关键动画库使用动态导入（lazy loading）
+- [ ] CSS 动画已提取到独立文件并压缩
+- [ ] Tree-shaking 正确工作，未使用的动画代码被移除
+- [ ] 生产构建启用了代码压缩和混淆
+- [ ] 关键动画相关代码内联在主包中
+- [ ] 非关键动画代码分割到独立 chunk
+
+## 7. 护栏约束
+
+### 性能约束规则
+
+| 约束类型 | 硬性限制 | 说明 | 监控方法 |
+|---------|---------|------|---------|
+| 帧率下限 | 不低于 30fps | 低于此值会有明显卡顿感，必须优化 | Chrome DevTools Performance 面板 |
+| 目标帧率 | 稳定 60fps | 现代设备的标准流畅体验 | 录制 6 秒动画，查看帧率图表 |
+| 单帧预算 | 不超过 16.67ms | 60fps 要求每帧在 16.67ms 内完成 | Performance 面板查看每帧耗时 |
+| 同屏动画数 | 不超过 5 个 | 超过会导致主线程阻塞 | 人工审查或自定义性能监控 |
+| will-change 数量 | 不超过 3 个 | 过多会消耗大量内存 | 审查 CSS 代码 |
+| GPU 图层数 | 不超过 10 层 | 过多合成层消耗 GPU 内存 | Layers 面板查看图层树 |
+| 动画库体积 | 单库不超过 50KB | 避免首屏加载时间过长 | Bundle analyzer 分析 |
+| 首屏动画延迟 | 不超过 100ms | 用户感知的即时反馈阈值 | Lighthouse 测试 First Input Delay |
+
+### 用户体验约束
+
+| 约束类型 | 硬性限制 | 说明 | 验证方法 |
+|---------|---------|------|---------|
+| 微交互时长 | 200-300ms | 按钮、链接等小元素的反馈时间 | 使用秒表或录屏测量 |
+| 过渡动画时长 | 300-500ms | 页面切换、模态框等中等规模动画 | 开发者工具慢速模式验证 |
+| 加载动画时长 | 1-2 秒一个循环 | 避免用户焦虑，但不宜过快 | 模拟慢速网络测试 |
+| 最长等待时间 | 3 秒显示进度 | 超过 3 秒必须提供进度反馈 | 设置网络延迟测试 |
+| 动画中断响应 | 立即响应 | 用户操作必须立即中断当前动画 | 快速连续点击测试 |
+| 焦虑阈值 | 动画不超过 800ms | 超过用户会感到明显等待 | 用户测试反馈 |
+| 减弱动效 | 100% 支持 | 必须尊重系统设置 | 系统设置中开启测试 |
+| 闪烁频率限制 | 不超过 3Hz | 避免光敏性癫痫风险 | 审查关键帧动画 |
+
+### 内存约束
+
+| 约束类型 | 硬性限制 | 说明 | 监控方法 |
+|---------|---------|------|---------|
+| 动画实例数 | 不超过 20 个 | 保留的动画对象数量上限 | Memory 面板堆快照 |
+| 内存增长率 | 每分钟不超过 5MB | 长时间运行不应持续增长 | Performance Monitor 实时监控 |
+| 清理时间窗口 | 组件卸载后 1 秒内 | 动画资源必须及时释放 | 检查 useEffect cleanup |
+| 事件监听器 | 及时移除 | 避免事件监听器泄漏 | Chrome Memory Profiler |
+| 定时器清理 | 100% 清理 | 所有 setTimeout/setInterval 必须清除 | 代码审查 + 运行时检测 |
+| 离屏元素 | 暂停动画 | 不可见元素不应继续动画 | Intersection Observer 监控 |
+
+### 浏览器兼容性约束
+
+| 约束类型 | 最低支持版本 | 降级策略 | 检测方法 |
+|---------|------------|---------|---------|
+| CSS Transform | IE 10+ | 不支持则隐藏动画，直接展示内容 | @supports 查询 |
+| CSS Animation | IE 10+ | 降级为 transition 或静态 | 特性检测 |
+| Intersection Observer | Chrome 51+, Safari 12.1+ | 降级为 scroll 事件 + 节流 | Polyfill 或特性检测 |
+| will-change | Chrome 36+, Firefox 36+ | 不支持则忽略，依赖浏览器优化 | @supports 查询 |
+| backdrop-filter | Chrome 76+, Safari 9+ | 降级为纯色背景 | @supports 查询 |
+| prefers-reduced-motion | Chrome 74+, Safari 10.1+ | 默认提供简化动画 | matchMedia 查询 |
+
+### 开发约束规则
+
+| 约束类型 | 强制要求 | 说明 | 检查方法 |
+|---------|---------|------|---------|
+| 动画配置集中 | 必须集中管理 | 不允许硬编码在组件中 | 代码审查 |
+| 清理函数 | 100% 实现 | 每个动画必须有清理逻辑 | ESLint 规则 + Code Review |
+| 性能测试 | 必须通过 | 提交前必须在低端设备测试 | CI 流程集成 |
+| 文档注释 | 必须添加 | 说明动画意图和参数选择 | 文档覆盖率检查 |
+| TypeScript 类型 | 必须完整 | 动画参数必须有类型定义 | tsc --noEmit 检查 |
+| 单元测试 | 覆盖触发逻辑 | 测试动画触发条件而非动画本身 | Jest 覆盖率报告 |
+
+## 8. 常见问题诊断表
+
+### 性能问题
+
+| 症状 | 可能原因 | 解决方案 | 优先级 |
+|------|---------|---------|--------|
+| 动画卡顿，帧率低于 30fps | 使用了触发重排的属性（left/top/width/height） | 改用 transform 和 opacity | P0 |
+| 滚动时页面抖动 | 滚动监听器中触发了强制同步布局 | 使用 Intersection Observer 或 requestAnimationFrame | P0 |
+| 首次动画延迟 2 秒以上 | 动画库体积大，首屏加载慢 | 使用动态导入或切换到 CSS 动画 | P1 |
+| 移动设备严重发热 | 过度使用 GPU 加速或动画数量过多 | 减少同时动画的元素，降低复杂度 | P1 |
+| 动画后半段变慢 | JavaScript 主线程被阻塞 | 将计算密集任务移到 Web Worker | P1 |
+| 页面滚动时掉帧 | 每次滚动都触发动画重新计算 | 添加节流或使用 CSS scroll-driven animations | P1 |
+| 长时间使用后变慢 | 动画实例未清理，内存泄漏 | 在组件卸载时清理所有动画和监听器 | P0 |
+| 动画开始时闪烁 | will-change 添加时机不对 | 在动画前 100ms 添加，动画后移除 | P2 |
+
+### 用户体验问题
+
+| 症状 | 可能原因 | 解决方案 | 优先级 |
+|------|---------|---------|--------|
+| 用户感觉操作响应慢 | 动画时长设置过长（超过 500ms） | 缩短为 200-300ms | P0 |
+| 页面切换感觉很拖沓 | 过渡动画时间过长 | 控制在 300-500ms，移除不必要的延迟 | P1 |
+| 加载时用户焦虑不安 | 无进度反馈，只有无限旋转 | 添加百分比进度或阶段提示 | P1 |
+| 快速点击时动画错乱 | 没有处理动画中断情况 | 使用动画库的中断功能或重置状态 | P0 |
+| 有用户反馈眩晕不适 | 未支持 prefers-reduced-motion | 检测系统设置，提供静态或简化版本 | P0 |
+| 动画感觉很生硬 | 使用了 linear 缓动函数 | 改用 ease-in-out 或弹簧动画 | P2 |
+| 加载动画遮挡了内容 | 动画层级过高且不透明 | 降低 z-index 或使用半透明背景 | P1 |
+| 用户误以为页面卡住了 | 动画时间超过 3 秒无反馈 | 添加进度指示或取消按钮 | P0 |
+
+### 技术集成问题
+
+| 症状 | 可能原因 | 解决方案 | 优先级 |
+|------|---------|---------|--------|
+| Framer Motion 动画不触发 | AnimatePresence 使用不当或 key 未正确设置 | 确保子元素有唯一 key，检查 mode 设置 | P1 |
+| GSAP 动画在 React 严格模式下执行两次 | useEffect 被调用两次 | 在 cleanup 中清理动画实例 | P1 |
+| 路由切换时动画闪烁 | 新页面立即渲染，旧页面未完成退出动画 | 使用 AnimatePresence 或等待动画完成再切换 | P1 |
+| CSS 动画在 Safari 上不工作 | 缺少 -webkit- 前缀 | 使用 Autoprefixer 或手动添加前缀 | P0 |
+| 动画在服务端渲染时报错 | 动画库尝试访问 window 对象 | 使用 dynamic import 并关闭 ssr | P1 |
+| TypeScript 报类型错误 | 动画库类型定义不完整 | 安装 @types 包或添加类型声明文件 | P2 |
+| Next.js 页面过渡不流畅 | App Router 默认行为与动画冲突 | 使用 usePathname 监听变化，手动控制动画 | P1 |
+| 动画在 build 后不工作 | CSS 类名被压缩或移除 | 检查 purgecss 配置，添加安全列表 | P0 |
+
+### 兼容性问题
+
+| 症状 | 可能原因 | 解决方案 | 优先级 |
+|------|---------|---------|--------|
+| 动画在 iOS Safari 上抖动 | iOS 对某些 CSS 属性的渲染问题 | 添加 -webkit-transform 并使用 translateZ 强制 GPU 加速 | P1 |
+| 动画在 Firefox 上不流畅 | Firefox 的动画渲染策略不同 | 调整 will-change 使用或使用 JS 动画库 | P2 |
+| 旧版浏览器不显示动画 | 不支持 CSS Animation 或 Transform | 添加 @supports 查询，提供降级方案 | P1 |
+| Edge 浏览器动画有残影 | Edge 的合成层优化问题 | 添加 backface-visibility: hidden | P2 |
+| Android 微信内置浏览器卡顿 | 微信浏览器性能限制 | 简化动画，减少元素数量 | P1 |
+| 动画在低端设备完全卡死 | 设备性能不足 | 检测设备性能，自动降级为简化动画 | P0 |
+
+### 调试问题
+
+| 症状 | 可能原因 | 解决方案 | 优先级 |
+|------|---------|---------|--------|
+| 无法定位性能瓶颈 | 没有使用正确的调试工具 | 使用 Chrome DevTools Performance 录制并分析 | P1 |
+| 不知道哪些元素触发了重排 | 未开启可视化工具 | 使用 Rendering 面板的 Paint Flashing 和 Layout Shift | P1 |
+| 无法查看合成层情况 | 未使用 Layers 面板 | 打开 Layers 面板查看图层树和原因 | P2 |
+| 移动设备调试困难 | 未使用远程调试 | 使用 Chrome DevTools 远程调试或 Eruda | P1 |
+| 动画库内部报错难以追踪 | Source Map 未正确加载 | 检查 webpack devtool 配置 | P2 |
+| 不确定动画是否使用 GPU | 未查看渲染层信息 | 在 Performance 录制中查看 Composite 事件 | P2 |
+
+## 9. 输出格式要求
+
+### 动画实现方案输出模板
+
+```
+# {动画名称} 实现方案
+
+## 一、需求分析
+- 动画类型：{过渡/关键帧/交互/滚动}
+- 触发条件：{描述用户操作或页面事件}
+- 视觉效果：{详细描述动画的视觉表现}
+- 用户目标：{动画希望传达的信息或引导的行为}
+
+## 二、技术选型
+- 选择方案：{CSS/Framer Motion/GSAP/React Spring}
+- 选择理由：
+  - 性能考虑：{为何此方案性能最优}
+  - 实现复杂度：{开发成本评估}
+  - 包体积影响：{增加多少 KB}
+  - 维护性：{后续迭代的便利性}
+- 备选方案：{如果主方案不可行的替代方案}
+
+## 三、实现思路
+
+### 3.1 动画状态定义
+- 初始状态：{元素的起始位置、透明度、缩放等}
+- 过渡状态：{动画执行过程中的中间关键帧}
+- 结束状态：{动画完成后的最终样式}
+
+### 3.2 动画时序设计
+- 总时长：{X}ms
+- 延迟启动：{Y}ms（如果有交错效果）
+- 缓动函数：{ease-in/ease-out/spring(stiffness, damping)}
+- 关键帧分布：{描述关键帧的时间点和状态}
+
+### 3.3 交互逻辑（如适用）
+- 触发方式：{点击/悬停/滚动/拖拽}
+- 手势识别：{需要识别的手势类型}
+- 边界处理：{拖拽范围限制或滚动边界}
+- 中断机制：{用户操作如何中断动画}
+
+## 四、性能优化策略
+
+### 4.1 渲染优化
+- 动画属性：仅使用 {transform: translateX/translateY/scale/rotate, opacity}
+- GPU 加速：{是否需要，如何启用}
+- 图层提升：{哪些元素需要独立合成层}
+- will-change 使用：{在动画开始前添加，结束后移除}
+
+### 4.2 资源优化
+- 按需加载：{动画库是否动态导入}
+- 代码分割：{非关键动画是否独立 chunk}
+- 懒执行：{离屏元素是否暂停动画}
+- 内存清理：{cleanup 函数的实现要点}
+
+### 4.3 性能监控
+- 目标帧率：60fps
+- 性能预算：单帧不超过 16.67ms
+- 监控方法：{使用哪些 DevTools 面板}
+- 降级条件：{低端设备的简化方案}
+
+## 五、无障碍支持
+
+### 5.1 减弱动效支持
+- 检测方式：prefers-reduced-motion 媒体查询
+- 降级方案：{静态展示/简化动画/仅保留透明度}
+- 用户控制：{是否提供手动开关}
+
+### 5.2 焦点管理
+- 焦点顺序：{动画不影响键盘导航}
+- 焦点可见性：{动画过程中焦点指示器清晰}
+- 屏幕阅读器：{状态变化的语义化播报}
+
+## 六、浏览器兼容性
+
+### 6.1 支持范围
+- 现代浏览器：{列出测试通过的版本}
+- 移动浏览器：{iOS Safari X+, Android Chrome X+}
+- 降级支持：{旧版浏览器的降级方案}
+
+### 6.2 兼容性处理
+- CSS 前缀：{是否需要 -webkit- 等前缀}
+- Polyfill：{需要的 polyfill 列表}
+- 特性检测：{使用 @supports 或 JS 检测}
+
+## 七、实现清单
+
+### 7.1 文件结构
+- 动画配置文件：{路径和文件名}
+- 组件文件：{实现动画的组件位置}
+- 样式文件：{CSS/SCSS 文件路径}
+- 工具函数：{辅助函数的位置}
+
+### 7.2 核心配置
+- 动画时长常量：{定义在配置文件中的变量名}
+- 缓动函数定义：{自定义缓动曲线的参数}
+- 响应式断点：{不同屏幕尺寸的动画差异}
+
+### 7.3 关键实现点
+- 动画触发逻辑：{如何监听和触发}
+- 状态管理：{动画状态如何存储和更新}
+- 清理逻辑：{useEffect cleanup 或生命周期方法}
+- 错误处理：{动画失败时的降级}
+
+## 八、测试验证
+
+### 8.1 性能测试
+- [ ] Chrome DevTools Performance 录制，帧率稳定 60fps
+- [ ] 移动设备测试，无明显发热
+- [ ] 低端设备节流测试，降级方案正常工作
+- [ ] 内存泄漏检测，长时间运行无异常
+
+### 8.2 功能测试
+- [ ] 动画在所有触发条件下正确执行
+- [ ] 快速连续触发不会错乱
+- [ ] 动画可以被正确中断
+- [ ] 边界条件处理正确
+
+### 8.3 兼容性测试
+- [ ] 在 Chrome/Firefox/Safari/Edge 测试通过
+- [ ] 在 iOS 和 Android 移动浏览器测试通过
+- [ ] 旧版浏览器降级方案验证
+- [ ] 无障碍模式下表现正常
+
+## 九、后续优化空间
+
+- 可能的改进点：{列出未来可以优化的方向}
+- 性能提升空间：{进一步优化的可能性}
+- 功能扩展：{基于此动画可以扩展的效果}
+- 代码重构：{更优雅的实现方式}
+
+## 十、参考资料
+
+- 技术文档：{动画库官方文档链接}
+- 设计规范：{Material Design/Apple HIG 等相关章节}
+- 性能指南：{Web.dev 或 MDN 的性能文章}
+- 无障碍标准：{WCAG 相关条款}
+```
+
+### 性能分析报告输出模板
+
+```
+# {项目名称} 动画性能分析报告
+
+## 测试环境
+- 浏览器：{Chrome 版本号}
+- 设备：{桌面/移动设备型号}
+- 屏幕分辨率：{宽x高}
+- CPU 节流：{是否开启，倍数}
+- 网络条件：{Fast 3G/4G/WiFi}
+
+## 性能指标
+
+### 帧率分析
+| 动画场景 | 平均帧率 | 最低帧率 | 掉帧次数 | 是否达标 |
+|---------|---------|---------|---------|---------|
+| 页面加载动画 | X fps | Y fps | Z 次 | ✅/❌ |
+| 滚动视差 | X fps | Y fps | Z 次 | ✅/❌ |
+| 模态框过渡 | X fps | Y fps | Z 次 | ✅/❌ |
+| 列表动画 | X fps | Y fps | Z 次 | ✅/❌ |
+
+### 性能预算
+| 指标 | 预算值 | 实际值 | 是否超标 |
+|------|-------|-------|---------|
+| 单帧最大耗时 | 16.67ms | X ms | ✅/❌ |
+| 主线程阻塞时长 | < 50ms | X ms | ✅/❌ |
+| GPU 图层数 | < 10 层 | X 层 | ✅/❌ |
+| JavaScript 执行时间 | < 100ms | X ms | ✅/❌ |
+| 内存占用增长 | < 5MB/min | X MB/min | ✅/❌ |
+
+## 问题识别
+
+### 性能瓶颈
+1. {问题描述}
+   - 位置：{文件名和行号}
+   - 原因：{触发重排/大量计算/内存泄漏}
+   - 影响：{帧率下降 X fps，用户体验 Y}
+   - 优先级：P{0/1/2}
+
+2. {下一个问题...}
+
+### 优化建议
+
+#### 高优先级（P0）
+- [ ] {优化项 1}：{具体措施}，预期提升 {X} fps
+- [ ] {优化项 2}：{具体措施}，预期减少 {Y} ms
+
+#### 中优先级（P1）
+- [ ] {优化项 3}：{具体措施}，预期改善 {描述}
+- [ ] {优化项 4}：{具体措施}，预期减少 {Z} KB
+
+#### 低优先级（P2）
+- [ ] {优化项 5}：{具体措施}，代码质量提升
+
+## 详细分析
+
+### 动画渲染管线
+{描述从触发到完成的整个渲染流程}
+1. 触发阶段：{JavaScript 执行耗时}
+2. 样式计算：{Style 耗时}
+3. 布局计算：{Layout 耗时}
+4. 绘制：{Paint 耗时}
+5. 合成：{Composite 耗时}
+
+### 关键发现
+- 发现 1：{描述}
+- 发现 2：{描述}
+- 发现 3：{描述}
+
+## 优化前后对比
+
+| 指标 | 优化前 | 优化后 | 提升比例 |
+|------|-------|-------|---------|
+| 平均帧率 | X fps | Y fps | +Z% |
+| 首次动画延迟 | X ms | Y ms | -Z% |
+| 内存占用 | X MB | Y MB | -Z% |
+| 包体积 | X KB | Y KB | -Z% |
+
+## 后续行动
+
+### 立即执行（本周内）
+- [ ] {优化项}：负责人 {姓名}
+
+### 计划执行（本月内）
+- [ ] {优化项}：负责人 {姓名}
+
+### 长期优化（下季度）
+- [ ] {优化项}：负责人 {姓名}
+
+## 附录
+
+### 测试数据来源
+- Performance 录制文件：{路径}
+- Lighthouse 报告：{路径}
+- 截图和录屏：{路径}
+
+### 参考基准
+- 行业标准：{链接}
+- 竞品对比：{数据}
+```
+
+### 动画设计文档输出模板
+
+```
+# {功能模块} 动画设计文档
+
+## 设计意图
+{描述动画的设计目的、想传达的情感、引导的用户行为}
+
+## 动画清单
+
+### 微交互动画
+| 元素 | 触发条件 | 动画效果 | 时长 | 缓动 |
+|------|---------|---------|------|------|
+| 按钮 | 悬停 | 背景色过渡 + 轻微放大 | 200ms | ease-out |
+| 按钮 | 点击 | 缩小 0.95 倍 | 100ms | ease-in |
+| 输入框 | 获得焦点 | 边框颜色过渡 + 阴影展开 | 200ms | ease-out |
+| 复选框 | 勾选 | 勾号路径动画 + 弹性缩放 | 300ms | spring |
+| 开关 | 切换 | 滑块平移 + 背景色过渡 | 250ms | ease-in-out |
+
+### 页面级动画
+| 场景 | 入场效果 | 出场效果 | 时长 | 技术方案 |
+|------|---------|---------|------|---------|
+| 页面切换 | 从右滑入 + 淡入 | 向左滑出 + 淡出 | 400ms | Framer Motion |
+| 模态框 | 从中心放大 + 淡入 | 向中心缩小 + 淡出 | 300ms | Framer Motion |
+| 抽屉 | 从侧边滑入 | 向侧边滑出 | 350ms | CSS Transform |
+| 下拉菜单 | 向下展开 + 淡入 | 向上收起 + 淡出 | 200ms | CSS Animation |
+
+### 加载与反馈
+| 场景 | 动画类型 | 描述 | 时长 | 触发条件 |
+|------|---------|------|------|---------|
+| 首屏加载 | 骨架屏闪烁 | 从左向右移动的高光渐变 | 1.5s 循环 | 内容未加载完成 |
+| 按钮加载 | 旋转圈 | 圆形边框旋转 | 1s 循环 | 异步操作进行中 |
+| 数据加载 | 进度条 | 蓝色条从左向右填充 | 根据进度 | 长时间加载任务 |
+| 操作成功 | 勾号路径动画 | 绿色勾号绘制 + 缩放 | 500ms | 操作成功回调 |
+| 操作失败 | 抖动 | 左右摇摆 | 400ms | 操作失败回调 |
+
+### 滚动驱动
+| 场景 | 触发位置 | 动画效果 | 实现方式 |
+|------|---------|---------|---------|
+| 内容淡入 | 元素进入视口底部 80% | 从下方 50px 淡入 | Intersection Observer |
+| 视差背景 | 滚动全程 | 背景以 0.5 倍速移动 | GSAP ScrollTrigger |
+| 数字递增 | 元素进入视口 | 从 0 计数到目标值 | React Spring |
+| 进度指示 | 滚动全程 | 顶部进度条填充 | CSS + Scroll Event |
+
+## 设计规范
+
+### 时长标准
+- 微交互（按钮、链接）：200-300ms
+- 小型组件（提示框、下拉菜单）：250-350ms
+- 中型组件（模态框、抽屉）：300-500ms
+- 页面过渡：300-500ms
+- 加载动画：1-2 秒一个循环
+
+### 缓动函数
+- ease-in：用于元素退出和收起，起始慢结束快
+- ease-out：用于元素入场和展开，起始快结束慢
+- ease-in-out：用于来回过渡，两端慢中间快
+- spring：用于需要物理真实感的交互，弹性效果
+
+### 动画层次
+- Z1：背景和底层装饰动画，最不突出
+- Z2：内容区域的动画，中等注意力
+- Z3：交互反馈和引导动画，高注意力
+
+## 无障碍设计
+
+### 减弱动效模式
+- 淡入动画：保留透明度变化，移除位移和缩放
+- 滑动动画：改为简单的淡入淡出
+- 弹簧动画：改为线性或静态切换
+- 无限循环：停止或减慢速度
+
+### 语义化反馈
+- 加载状态：提供 aria-live="polite" 播报
+- 成功/失败：提供 role="alert" 通知
+- 进度变化：更新 aria-valuenow 属性
+
+## 响应式适配
+
+### 移动端调整
+- 动画时长：缩短 20%（触摸反馈需要更快）
+- 动画距离：缩短 30%（屏幕空间有限）
+- 手势支持：滑动、长按、捏合等移动特有交互
+- 性能保护：降低复杂度，减少同时动画数
+
+### 断点差异
+- 小屏（< 640px）：简化动画，只保留关键过渡
+- 中屏（640-1024px）：标准动画效果
+- 大屏（> 1024px）：可以增强细节，更流畅的效果
+
+## 品牌一致性
+- 主要缓动：{品牌特定的 cubic-bezier 曲线}
+- 特征动画：{品牌识别度高的特定动画效果}
+- 色彩过渡：{品牌色系的渐变方向}
+
+## 实施优先级
+1. P0（必须实现）：{列出核心动画}
+2. P1（重要但不紧急）：{列出增强动画}
+3. P2（锦上添花）：{列出装饰性动画}
+
+## 验收标准
+- [ ] 所有 P0 动画实现并通过性能测试
+- [ ] 所有动画支持 prefers-reduced-motion
+- [ ] 在主流浏览器和移动设备测试通过
+- [ ] 设计稿与实现效果误差小于 50ms
+```
+
+---
+
+以上文档遵循结构化、可操作的原则，避免使用代码示例，专注于决策指导、规范约束和问题诊断，帮助开发者做出正确的动画实现选择。
