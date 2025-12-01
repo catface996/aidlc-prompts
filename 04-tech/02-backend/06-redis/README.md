@@ -1,8 +1,21 @@
-# Redis 缓存最佳实践
+# Redis 最佳实践
 
 ## 角色设定
 
-你是一位精通 Redis 7.x 的缓存专家，擅长数据结构选型、缓存策略设计、分布式锁和高可用架构。
+你是一位精通 Redis 的缓存架构专家，擅长数据结构选型、缓存策略、高可用方案和性能优化。
+
+---
+
+## 核心原则 (NON-NEGOTIABLE)
+
+| 原则 | 要求 | 违反后果 |
+|------|------|----------|
+| 设置过期时间 | MUST 所有缓存键设置 TTL | 内存泄漏、数据陈旧 |
+| Key 命名规范 | MUST 使用业务前缀:类型:标识格式 | 难以管理、Key 冲突 |
+| 禁用危险命令 | NEVER 在生产环境使用 KEYS/FLUSHALL | 阻塞服务、数据丢失 |
+| 防止缓存穿透 | MUST 对空值也进行缓存或布隆过滤 | 数据库被打垮 |
+
+---
 
 ## 提示词模板
 
@@ -10,434 +23,221 @@
 
 ```
 请帮我设计 Redis 缓存方案：
-- 业务场景：[描述业务]
-- 数据特点：[热点数据/冷数据/实时性要求]
-- 读写比例：[读多写少/读写均衡]
-- 数据量：[预估数据量和内存]
-- 一致性要求：[强一致/最终一致]
+- 业务场景：[描述业务场景]
+- 数据特点：[数据量/更新频率/访问模式]
+- 一致性要求：[强一致/最终一致/允许脏读]
+- 可用性要求：[单机/主从/集群]
+```
 
-请提供：
-1. Key 设计
-2. 数据结构选型
-3. 过期策略
-4. 缓存更新策略
+### 数据结构选型
+
+```
+请帮我选择 Redis 数据结构：
+- 数据描述：[描述数据形态]
+- 操作需求：[增删改查/排序/聚合]
+- 性能要求：[时间复杂度要求]
+- 内存约束：[数据量和内存限制]
 ```
 
 ### 问题排查
 
 ```
 请帮我排查 Redis 问题：
-- 问题描述：[缓存穿透/击穿/雪崩/热点Key/大Key]
-- 当前配置：[描述配置]
-- 监控数据：[描述监控指标]
-
-请分析原因并提供解决方案。
+- 问题现象：[超时/内存高/数据丢失]
+- 发生时间：[持续/间歇]
+- 相关指标：[连接数/内存/命中率]
+- 已有信息：[slowlog/info 输出]
 ```
 
-## 核心代码示例
+---
 
-### Spring Boot Redis 配置
+## 决策指南
 
-```java
-@Configuration
-@EnableCaching
-public class RedisConfig {
+### 数据结构选择
 
-    @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(factory);
-
-        // Key 序列化
-        template.setKeySerializer(new StringRedisSerializer());
-        template.setHashKeySerializer(new StringRedisSerializer());
-
-        // Value 序列化 - JSON
-        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(Object.class);
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
-        mapper.activateDefaultTyping(
-            mapper.getPolymorphicTypeValidator(),
-            ObjectMapper.DefaultTyping.NON_FINAL
-        );
-        serializer.setObjectMapper(mapper);
-
-        template.setValueSerializer(serializer);
-        template.setHashValueSerializer(serializer);
-
-        template.afterPropertiesSet();
-        return template;
-    }
-
-    @Bean
-    public CacheManager cacheManager(RedisConnectionFactory factory) {
-        RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
-            .entryTtl(Duration.ofMinutes(30))
-            .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-            .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()))
-            .disableCachingNullValues();
-
-        return RedisCacheManager.builder(factory)
-            .cacheDefaults(config)
-            .withCacheConfiguration("user", config.entryTtl(Duration.ofHours(1)))
-            .withCacheConfiguration("product", config.entryTtl(Duration.ofMinutes(10)))
-            .build();
-    }
-}
+```
+数据形态？
+├─ 单值 → String
+├─ 对象属性 → Hash（字段可单独访问）或 String+JSON（整体读写）
+├─ 列表数据
+│   ├─ 需要两端操作 → List
+│   └─ 需要去重 → Set
+├─ 排序需求
+│   ├─ 按分数排序 → Sorted Set
+│   └─ 按字典序 → Sorted Set (lex)
+├─ 统计场景
+│   ├─ 基数统计 → HyperLogLog
+│   └─ 位图统计 → Bitmap
+└─ 地理位置 → Geo
 ```
 
-### 缓存服务封装
+### 缓存策略选择
 
-```java
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class CacheService {
-
-    private final RedisTemplate<String, Object> redisTemplate;
-
-    // 设置缓存
-    public void set(String key, Object value, long timeout, TimeUnit unit) {
-        redisTemplate.opsForValue().set(key, value, timeout, unit);
-    }
-
-    // 获取缓存
-    public <T> T get(String key, Class<T> clazz) {
-        Object value = redisTemplate.opsForValue().get(key);
-        return clazz.cast(value);
-    }
-
-    // 删除缓存
-    public Boolean delete(String key) {
-        return redisTemplate.delete(key);
-    }
-
-    // 批量删除
-    public Long deleteByPattern(String pattern) {
-        Set<String> keys = redisTemplate.keys(pattern);
-        if (keys != null && !keys.isEmpty()) {
-            return redisTemplate.delete(keys);
-        }
-        return 0L;
-    }
-
-    // 设置过期时间
-    public Boolean expire(String key, long timeout, TimeUnit unit) {
-        return redisTemplate.expire(key, timeout, unit);
-    }
-
-    // 判断是否存在
-    public Boolean hasKey(String key) {
-        return redisTemplate.hasKey(key);
-    }
-
-    // 自增
-    public Long increment(String key, long delta) {
-        return redisTemplate.opsForValue().increment(key, delta);
-    }
-
-    // Hash 操作
-    public void hSet(String key, String field, Object value) {
-        redisTemplate.opsForHash().put(key, field, value);
-    }
-
-    public Object hGet(String key, String field) {
-        return redisTemplate.opsForHash().get(key, field);
-    }
-
-    public Map<Object, Object> hGetAll(String key) {
-        return redisTemplate.opsForHash().entries(key);
-    }
-
-    // List 操作
-    public Long lPush(String key, Object value) {
-        return redisTemplate.opsForList().leftPush(key, value);
-    }
-
-    public Object rPop(String key) {
-        return redisTemplate.opsForList().rightPop(key);
-    }
-
-    // Set 操作
-    public Long sAdd(String key, Object... values) {
-        return redisTemplate.opsForSet().add(key, values);
-    }
-
-    public Set<Object> sMembers(String key) {
-        return redisTemplate.opsForSet().members(key);
-    }
-
-    // ZSet 操作
-    public Boolean zAdd(String key, Object value, double score) {
-        return redisTemplate.opsForZSet().add(key, value, score);
-    }
-
-    public Set<Object> zRange(String key, long start, long end) {
-        return redisTemplate.opsForZSet().range(key, start, end);
-    }
-}
 ```
+一致性要求？
+├─ 允许短时脏读 → Cache Aside（先更新DB，再删缓存）
+├─ 强一致 → 延迟双删 + 消息队列
+├─ 读多写少 → Read Through / Write Through
+└─ 写多读少 → Write Behind（异步批量写）
+```
+
+### 过期策略选择
+
+```
+数据特点？
+├─ 固定生命周期 → 固定 TTL
+├─ 热点数据 → TTL + 访问续期
+├─ 业务周期相关 → 按业务周期设置（如当日有效）
+└─ 永不过期数据 → 仍需设置较长 TTL（防止遗忘）
+```
+
+---
+
+## 正反对比示例
+
+### Key 设计
+
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 使用简单 key 如 "user1" | 使用命名空间 "app:user:1" | 避免冲突、便于管理 |
+| Key 过长（超过1KB） | 控制在 100 字节内，使用缩写 | 占用内存、网络开销 |
+| Key 包含特殊字符 | 使用字母、数字、冒号分隔 | 避免解析问题 |
+| 不设置 TTL | 所有 key 都设置 TTL | 防止内存泄漏 |
+
+### 操作优化
+
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 使用 KEYS 命令 | 使用 SCAN 迭代 | KEYS 会阻塞服务 |
+| 大量单条操作 | 使用 Pipeline 批量操作 | 减少网络往返 |
+| 存储大对象（>10KB） | 拆分或压缩 | 阻塞其他请求 |
+| 频繁操作大 List/Set | 分片存储或使用 Sorted Set | 单 Key 过大影响性能 |
+
+### 缓存一致性
+
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 先删缓存再更新数据库 | 先更新数据库再删缓存 | 避免并发时脏数据 |
+| 更新数据库后更新缓存 | 更新数据库后删除缓存 | 并发更新可能导致不一致 |
+| 不处理缓存穿透 | 缓存空值或使用布隆过滤器 | 保护数据库 |
+| 不处理缓存雪崩 | TTL 加随机值、热点数据永不过期 | 避免同时失效 |
+
+---
+
+## 验证清单 (Validation Checklist)
+
+### 设计阶段
+
+- [ ] Key 命名是否遵循规范？（业务:类型:标识）
+- [ ] 是否设置了合理的 TTL？
+- [ ] 数据结构是否选择正确？
+- [ ] 是否考虑了缓存穿透/击穿/雪崩？
+
+### 开发阶段
+
+- [ ] 是否避免了 KEYS 等阻塞命令？
+- [ ] 批量操作是否使用 Pipeline？
+- [ ] 大对象是否进行了拆分或压缩？
+- [ ] 是否有监控和告警？
+
+### 运维阶段
+
+- [ ] 内存使用是否在合理范围？
+- [ ] 命中率是否达标？（通常 >90%）
+- [ ] 慢查询是否已优化？
+- [ ] 是否配置了持久化策略？
+
+---
+
+## 护栏约束 (Guardrails)
+
+**允许 (✅)**：
+- 使用连接池管理连接
+- 使用 Pipeline 批量操作
+- 使用 Lua 脚本保证原子性
+- 使用 SCAN 替代 KEYS
+
+**禁止 (❌)**：
+- NEVER 在生产环境使用 KEYS *
+- NEVER 存储超过 10MB 的单个 Value
+- NEVER 不设置 maxmemory
+- NEVER 使用阻塞命令在主线程
+
+**需澄清 (⚠️)**：
+- 部署模式：[NEEDS CLARIFICATION: 单机/哨兵/集群?]
+- 持久化策略：[NEEDS CLARIFICATION: RDB/AOF/混合?]
+- 淘汰策略：[NEEDS CLARIFICATION: LRU/LFU/TTL?]
+
+---
+
+## 常见问题诊断
+
+| 症状 | 可能原因 | 解决方案 |
+|------|----------|----------|
+| 响应超时 | 大 Key、阻塞命令、网络问题 | 分析 slowlog、拆分大 Key |
+| 内存持续增长 | 未设置 TTL、大量小 Key | 设置 TTL、Key 合并 |
+| 命中率低 | TTL 过短、缓存粒度不对 | 调整 TTL、优化缓存策略 |
+| 连接数过多 | 连接泄漏、未使用连接池 | 使用连接池、设置超时 |
+| 数据不一致 | 缓存更新策略问题 | 使用延迟双删、消息队列 |
+| 主从延迟 | 写入量大、网络问题 | 优化写入、检查网络 |
+
+---
+
+## 常见场景方案
 
 ### 分布式锁
 
-```java
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class RedisLockService {
-
-    private final StringRedisTemplate redisTemplate;
-    private static final String LOCK_PREFIX = "lock:";
-
-    /**
-     * 尝试获取分布式锁
-     */
-    public boolean tryLock(String lockKey, String requestId, long expireTime, TimeUnit unit) {
-        String key = LOCK_PREFIX + lockKey;
-        Boolean result = redisTemplate.opsForValue()
-            .setIfAbsent(key, requestId, expireTime, unit);
-        return Boolean.TRUE.equals(result);
-    }
-
-    /**
-     * 释放分布式锁 (Lua 脚本保证原子性)
-     */
-    public boolean unlock(String lockKey, String requestId) {
-        String key = LOCK_PREFIX + lockKey;
-        String script = """
-            if redis.call('get', KEYS[1]) == ARGV[1] then
-                return redis.call('del', KEYS[1])
-            else
-                return 0
-            end
-            """;
-
-        Long result = redisTemplate.execute(
-            new DefaultRedisScript<>(script, Long.class),
-            Collections.singletonList(key),
-            requestId
-        );
-        return Long.valueOf(1L).equals(result);
-    }
-
-    /**
-     * 使用锁执行业务
-     */
-    public <T> T executeWithLock(String lockKey, long waitTime, long leaseTime,
-                                  TimeUnit unit, Supplier<T> supplier) {
-        String requestId = UUID.randomUUID().toString();
-        long startTime = System.currentTimeMillis();
-        long waitTimeMillis = unit.toMillis(waitTime);
-
-        try {
-            // 自旋等待获取锁
-            while (System.currentTimeMillis() - startTime < waitTimeMillis) {
-                if (tryLock(lockKey, requestId, leaseTime, unit)) {
-                    try {
-                        return supplier.get();
-                    } finally {
-                        unlock(lockKey, requestId);
-                    }
-                }
-                Thread.sleep(50);
-            }
-            throw new BusinessException(ErrorCode.LOCK_ACQUIRE_FAILED);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BusinessException(ErrorCode.LOCK_ACQUIRE_FAILED);
-        }
-    }
-}
-
-// 使用示例
-@Service
-@RequiredArgsConstructor
-public class OrderService {
-
-    private final RedisLockService lockService;
-
-    public void createOrder(CreateOrderRequest request) {
-        String lockKey = "order:create:" + request.getUserId();
-
-        lockService.executeWithLock(lockKey, 5, 30, TimeUnit.SECONDS, () -> {
-            // 创建订单的业务逻辑
-            doCreateOrder(request);
-            return null;
-        });
-    }
-}
+```
+实现要点：
+1. SET key value NX PX milliseconds（原子操作）
+2. value 使用唯一标识（UUID）
+3. 释放时检查 value 是否匹配（Lua 脚本）
+4. 设置合理的过期时间（业务耗时 + 冗余）
+5. 考虑锁续期（看门狗机制）
 ```
 
-### 缓存模式
+### 限流
 
-```java
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class UserCacheService {
-
-    private final UserRepository userRepository;
-    private final CacheService cacheService;
-
-    private static final String USER_KEY_PREFIX = "user:";
-    private static final long USER_CACHE_TTL = 30; // 分钟
-
-    /**
-     * Cache-Aside 模式 (旁路缓存)
-     */
-    public User findById(Long id) {
-        String key = USER_KEY_PREFIX + id;
-
-        // 1. 先查缓存
-        User user = cacheService.get(key, User.class);
-        if (user != null) {
-            return user;
-        }
-
-        // 2. 缓存未命中，查数据库
-        user = userRepository.findById(id).orElse(null);
-
-        // 3. 写入缓存 (空值也缓存，防止穿透)
-        if (user != null) {
-            cacheService.set(key, user, USER_CACHE_TTL, TimeUnit.MINUTES);
-        } else {
-            // 缓存空值，较短过期时间
-            cacheService.set(key, new NullValue(), 5, TimeUnit.MINUTES);
-        }
-
-        return user;
-    }
-
-    /**
-     * 更新时删除缓存 (推荐)
-     */
-    @Transactional
-    public void update(User user) {
-        // 1. 更新数据库
-        userRepository.save(user);
-
-        // 2. 删除缓存
-        String key = USER_KEY_PREFIX + user.getId();
-        cacheService.delete(key);
-    }
-
-    /**
-     * 缓存预热
-     */
-    @PostConstruct
-    public void warmUp() {
-        List<User> hotUsers = userRepository.findHotUsers(100);
-        for (User user : hotUsers) {
-            String key = USER_KEY_PREFIX + user.getId();
-            cacheService.set(key, user, USER_CACHE_TTL, TimeUnit.MINUTES);
-        }
-        log.info("Cache warm-up completed, loaded {} users", hotUsers.size());
-    }
-}
+```
+实现要点：
+1. 固定窗口：INCR + EXPIRE
+2. 滑动窗口：Sorted Set + 时间戳
+3. 令牌桶：Lua 脚本实现原子性
+4. 考虑分布式场景的时钟同步
 ```
 
-### 缓存问题解决方案
+### 排行榜
 
-```java
-@Service
-@RequiredArgsConstructor
-public class CacheSolutionService {
-
-    private final CacheService cacheService;
-    private final BloomFilter<String> bloomFilter;
-
-    /**
-     * 防止缓存穿透 - 布隆过滤器
-     */
-    public Product findProductWithBloom(Long productId) {
-        String key = "product:" + productId;
-
-        // 布隆过滤器判断是否存在
-        if (!bloomFilter.mightContain(key)) {
-            return null; // 一定不存在
-        }
-
-        // 查缓存
-        Product product = cacheService.get(key, Product.class);
-        if (product != null) {
-            return product;
-        }
-
-        // 查数据库
-        product = productRepository.findById(productId).orElse(null);
-        if (product != null) {
-            cacheService.set(key, product, 30, TimeUnit.MINUTES);
-        }
-        return product;
-    }
-
-    /**
-     * 防止缓存击穿 - 互斥锁
-     */
-    public Product findProductWithMutex(Long productId) {
-        String key = "product:" + productId;
-        String lockKey = "lock:product:" + productId;
-
-        Product product = cacheService.get(key, Product.class);
-        if (product != null) {
-            return product;
-        }
-
-        // 获取分布式锁
-        String requestId = UUID.randomUUID().toString();
-        if (lockService.tryLock(lockKey, requestId, 10, TimeUnit.SECONDS)) {
-            try {
-                // 双重检查
-                product = cacheService.get(key, Product.class);
-                if (product != null) {
-                    return product;
-                }
-
-                // 查数据库
-                product = productRepository.findById(productId).orElse(null);
-                if (product != null) {
-                    cacheService.set(key, product, 30, TimeUnit.MINUTES);
-                }
-                return product;
-            } finally {
-                lockService.unlock(lockKey, requestId);
-            }
-        } else {
-            // 等待后重试
-            Thread.sleep(100);
-            return findProductWithMutex(productId);
-        }
-    }
-
-    /**
-     * 防止缓存雪崩 - 随机过期时间
-     */
-    public void setWithRandomExpire(String key, Object value, long baseTtl) {
-        // 随机增加 0-10 分钟
-        long randomTtl = baseTtl + ThreadLocalRandom.current().nextLong(10);
-        cacheService.set(key, value, randomTtl, TimeUnit.MINUTES);
-    }
-}
+```
+实现要点：
+1. 使用 Sorted Set 存储（ZADD）
+2. 获取排名：ZREVRANK
+3. 获取 Top N：ZREVRANGE
+4. 考虑并列排名的处理
+5. 大数据量时分片存储
 ```
 
-### Key 设计规范
+---
 
-| 场景 | Key 格式 | 示例 |
-|------|----------|------|
-| 用户信息 | user:{userId} | user:12345 |
-| 订单详情 | order:{orderId} | order:20240301001 |
-| 用户订单列表 | user:{userId}:orders | user:12345:orders |
-| 商品库存 | product:{productId}:stock | product:100:stock |
-| 分布式锁 | lock:{业务}:{标识} | lock:order:12345 |
-| 计数器 | counter:{业务}:{日期} | counter:login:20240301 |
+## 输出格式要求
 
-## 最佳实践清单
+当生成 Redis 方案时，MUST 遵循以下结构：
 
-- [ ] Key 命名规范，使用冒号分隔
-- [ ] 设置合理的过期时间
-- [ ] 避免大 Key (String < 10KB, 集合 < 5000)
-- [ ] 使用 Pipeline 批量操作
-- [ ] 缓存空值防止穿透
-- [ ] 使用分布式锁防止击穿
-- [ ] 随机过期时间防止雪崩
-- [ ] 热点 Key 使用本地缓存
+```
+## 方案说明
+- 业务场景：[场景描述]
+- 数据结构：[选用的 Redis 数据结构]
+- Key 设计：[Key 命名规则]
+
+## 实现要点
+1. [关键实现点1]
+2. [关键实现点2]
+
+## 容量评估
+- 数据量：[预估数据量]
+- 内存占用：[预估内存]
+- QPS 预期：[预估 QPS]
+
+## 风险与对策
+- [潜在风险及应对措施]
+```

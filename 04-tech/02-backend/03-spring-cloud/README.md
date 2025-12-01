@@ -4,6 +4,19 @@
 
 你是一位精通 Spring Cloud 的微服务架构专家，擅长服务注册发现、配置中心、服务网关、熔断限流和分布式事务。
 
+---
+
+## 核心原则 (NON-NEGOTIABLE)
+
+| 原则 | 要求 | 违反后果 |
+|------|------|----------|
+| 服务注册 | MUST 所有服务注册到注册中心 | 服务发现失败 |
+| 熔断降级 | MUST 为远程调用配置熔断和降级 | 雪崩效应 |
+| 配置外置 | MUST 使用配置中心管理配置 | 配置变更需重新部署 |
+| 链路追踪 | MUST 实现分布式链路追踪 | 问题难以定位 |
+
+---
+
 ## 提示词模板
 
 ### 微服务架构设计
@@ -14,10 +27,9 @@
 - 服务拆分：[列出服务]
 - 技术选型：
   - 注册中心：[Nacos/Eureka/Consul]
-  - 配置中心：[Nacos/Apollo/Config]
+  - 配置中心：[Nacos/Apollo]
   - 网关：[Gateway/Zuul]
   - 熔断：[Sentinel/Hystrix]
-  - 链路追踪：[SkyWalking/Zipkin]
 ```
 
 ### 服务通信
@@ -27,415 +39,251 @@
 - 通信方式：[HTTP/gRPC/消息队列]
 - 调用模式：[同步/异步]
 - 容错策略：[重试/熔断/降级]
+- 超时设置：[超时时间]
 ```
 
-## 核心配置示例
-
-### 项目依赖 (pom.xml)
-
-```xml
-<dependencyManagement>
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-dependencies</artifactId>
-            <version>2023.0.0</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.alibaba.cloud</groupId>
-            <artifactId>spring-cloud-alibaba-dependencies</artifactId>
-            <version>2023.0.0.0</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-    </dependencies>
-</dependencyManagement>
-
-<dependencies>
-    <!-- Nacos 服务发现 -->
-    <dependency>
-        <groupId>com.alibaba.cloud</groupId>
-        <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
-    </dependency>
-
-    <!-- Nacos 配置中心 -->
-    <dependency>
-        <groupId>com.alibaba.cloud</groupId>
-        <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
-    </dependency>
-
-    <!-- OpenFeign -->
-    <dependency>
-        <groupId>org.springframework.cloud</groupId>
-        <artifactId>spring-cloud-starter-openfeign</artifactId>
-    </dependency>
-
-    <!-- LoadBalancer -->
-    <dependency>
-        <groupId>org.springframework.cloud</groupId>
-        <artifactId>spring-cloud-starter-loadbalancer</artifactId>
-    </dependency>
-
-    <!-- Sentinel -->
-    <dependency>
-        <groupId>com.alibaba.cloud</groupId>
-        <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
-    </dependency>
-
-    <!-- Seata 分布式事务 -->
-    <dependency>
-        <groupId>com.alibaba.cloud</groupId>
-        <artifactId>spring-cloud-starter-alibaba-seata</artifactId>
-    </dependency>
-</dependencies>
-```
-
-### Nacos 配置
-
-```yaml
-# bootstrap.yml
-spring:
-  application:
-    name: order-service
-  cloud:
-    nacos:
-      discovery:
-        server-addr: ${NACOS_SERVER:localhost:8848}
-        namespace: ${NACOS_NAMESPACE:dev}
-        group: DEFAULT_GROUP
-      config:
-        server-addr: ${NACOS_SERVER:localhost:8848}
-        namespace: ${NACOS_NAMESPACE:dev}
-        file-extension: yaml
-        shared-configs:
-          - data-id: common.yaml
-            group: DEFAULT_GROUP
-            refresh: true
-```
-
-### OpenFeign 服务调用
-
-```java
-// Feign 客户端定义
-@FeignClient(
-    name = "user-service",
-    fallbackFactory = UserClientFallbackFactory.class,
-    configuration = FeignConfig.class
-)
-public interface UserClient {
-
-    @GetMapping("/api/v1/users/{id}")
-    Result<UserDTO> getById(@PathVariable("id") Long id);
-
-    @GetMapping("/api/v1/users")
-    Result<List<UserDTO>> getByIds(@RequestParam("ids") List<Long> ids);
-
-    @PostMapping("/api/v1/users/batch")
-    Result<Map<Long, UserDTO>> getBatch(@RequestBody List<Long> ids);
-}
-
-// Fallback 工厂
-@Component
-@Slf4j
-public class UserClientFallbackFactory implements FallbackFactory<UserClient> {
-
-    @Override
-    public UserClient create(Throwable cause) {
-        log.error("UserClient fallback, cause: {}", cause.getMessage());
-
-        return new UserClient() {
-            @Override
-            public Result<UserDTO> getById(Long id) {
-                return Result.error(ErrorCode.SERVICE_UNAVAILABLE, "用户服务暂不可用");
-            }
-
-            @Override
-            public Result<List<UserDTO>> getByIds(List<Long> ids) {
-                return Result.error(ErrorCode.SERVICE_UNAVAILABLE, "用户服务暂不可用");
-            }
-
-            @Override
-            public Result<Map<Long, UserDTO>> getBatch(List<Long> ids) {
-                return Result.success(Collections.emptyMap());
-            }
-        };
-    }
-}
-
-// Feign 配置
-@Configuration
-public class FeignConfig {
-
-    @Bean
-    public RequestInterceptor requestInterceptor() {
-        return template -> {
-            // 传递请求头
-            ServletRequestAttributes attributes = (ServletRequestAttributes)
-                RequestContextHolder.getRequestAttributes();
-            if (attributes != null) {
-                HttpServletRequest request = attributes.getRequest();
-                template.header("Authorization", request.getHeader("Authorization"));
-                template.header("X-Request-Id", request.getHeader("X-Request-Id"));
-            }
-        };
-    }
-
-    @Bean
-    public Retryer retryer() {
-        return new Retryer.Default(100, 1000, 3);
-    }
-}
-```
-
-### Spring Cloud Gateway
-
-```yaml
-# application.yml
-spring:
-  cloud:
-    gateway:
-      routes:
-        - id: user-service
-          uri: lb://user-service
-          predicates:
-            - Path=/api/user/**
-          filters:
-            - StripPrefix=2
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 100
-                redis-rate-limiter.burstCapacity: 200
-
-        - id: order-service
-          uri: lb://order-service
-          predicates:
-            - Path=/api/order/**
-          filters:
-            - StripPrefix=2
-
-      default-filters:
-        - name: Retry
-          args:
-            retries: 3
-            statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
-            methods: GET
-            backoff:
-              firstBackoff: 100ms
-              maxBackoff: 500ms
-              factor: 2
-
-      globalcors:
-        cors-configurations:
-          '[/**]':
-            allowedOrigins: "*"
-            allowedMethods: "*"
-            allowedHeaders: "*"
-```
-
-```java
-// 自定义全局过滤器
-@Component
-@Slf4j
-public class AuthGlobalFilter implements GlobalFilter, Ordered {
-
-    @Override
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        ServerHttpRequest request = exchange.getRequest();
-        String path = request.getPath().value();
-
-        // 白名单路径
-        if (isWhitelist(path)) {
-            return chain.filter(exchange);
-        }
-
-        // 验证 Token
-        String token = request.getHeaders().getFirst("Authorization");
-        if (StringUtils.isEmpty(token)) {
-            return unauthorized(exchange, "Missing token");
-        }
-
-        try {
-            Claims claims = JwtUtil.parseToken(token);
-            // 将用户信息传递给下游服务
-            ServerHttpRequest newRequest = request.mutate()
-                .header("X-User-Id", claims.getSubject())
-                .header("X-User-Name", claims.get("username", String.class))
-                .build();
-            return chain.filter(exchange.mutate().request(newRequest).build());
-        } catch (Exception e) {
-            return unauthorized(exchange, "Invalid token");
-        }
-    }
-
-    private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(HttpStatus.UNAUTHORIZED);
-        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-
-        String body = JSON.toJSONString(Result.error(401, message));
-        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
-    }
-
-    @Override
-    public int getOrder() {
-        return -100;
-    }
-}
-```
-
-### Sentinel 熔断限流
-
-```java
-// 资源定义
-@Service
-public class OrderService {
-
-    @SentinelResource(
-        value = "createOrder",
-        blockHandler = "createOrderBlockHandler",
-        fallback = "createOrderFallback"
-    )
-    public Order createOrder(CreateOrderRequest request) {
-        // 创建订单逻辑
-        return order;
-    }
-
-    // 限流/熔断时的处理
-    public Order createOrderBlockHandler(CreateOrderRequest request, BlockException ex) {
-        throw new BusinessException(ErrorCode.SERVICE_BUSY, "服务繁忙，请稍后重试");
-    }
-
-    // 异常时的降级处理
-    public Order createOrderFallback(CreateOrderRequest request, Throwable ex) {
-        log.error("Create order failed", ex);
-        throw new BusinessException(ErrorCode.SERVICE_ERROR, "订单创建失败");
-    }
-}
-
-// Sentinel 规则配置
-@Configuration
-public class SentinelConfig {
-
-    @PostConstruct
-    public void init() {
-        // 流控规则
-        FlowRule flowRule = new FlowRule();
-        flowRule.setResource("createOrder");
-        flowRule.setGrade(RuleConstant.FLOW_GRADE_QPS);
-        flowRule.setCount(100);
-        flowRule.setLimitApp("default");
-        FlowRuleManager.loadRules(Collections.singletonList(flowRule));
-
-        // 熔断规则
-        DegradeRule degradeRule = new DegradeRule();
-        degradeRule.setResource("createOrder");
-        degradeRule.setGrade(CircuitBreakerStrategy.SLOW_REQUEST_RATIO.getType());
-        degradeRule.setCount(0.5); // 慢调用比例阈值
-        degradeRule.setTimeWindow(10); // 熔断时长
-        degradeRule.setMinRequestAmount(10); // 最小请求数
-        degradeRule.setSlowRatioThreshold(0.5);
-        DegradeRuleManager.loadRules(Collections.singletonList(degradeRule));
-    }
-}
-```
-
-### Seata 分布式事务
-
-```java
-@Service
-@RequiredArgsConstructor
-public class OrderService {
-
-    private final OrderRepository orderRepository;
-    private final InventoryClient inventoryClient;
-    private final AccountClient accountClient;
-
-    @GlobalTransactional(name = "create-order", rollbackFor = Exception.class)
-    public Order createOrder(CreateOrderRequest request) {
-        // 1. 创建订单
-        Order order = new Order();
-        order.setUserId(request.getUserId());
-        order.setProductId(request.getProductId());
-        order.setQuantity(request.getQuantity());
-        order.setStatus(OrderStatus.PENDING);
-        order = orderRepository.save(order);
-
-        // 2. 扣减库存
-        Result<Void> inventoryResult = inventoryClient.deduct(
-            request.getProductId(), request.getQuantity());
-        if (!inventoryResult.isSuccess()) {
-            throw new BusinessException(ErrorCode.INVENTORY_INSUFFICIENT);
-        }
-
-        // 3. 扣减账户余额
-        Result<Void> accountResult = accountClient.deduct(
-            request.getUserId(), order.getTotalAmount());
-        if (!accountResult.isSuccess()) {
-            throw new BusinessException(ErrorCode.BALANCE_INSUFFICIENT);
-        }
-
-        // 4. 更新订单状态
-        order.setStatus(OrderStatus.PAID);
-        return orderRepository.save(order);
-    }
-}
-```
-
-```yaml
-# Seata 配置
-seata:
-  enabled: true
-  application-id: ${spring.application.name}
-  tx-service-group: default_tx_group
-  registry:
-    type: nacos
-    nacos:
-      server-addr: ${NACOS_SERVER:localhost:8848}
-      namespace: ${NACOS_NAMESPACE:dev}
-  config:
-    type: nacos
-    nacos:
-      server-addr: ${NACOS_SERVER:localhost:8848}
-      namespace: ${NACOS_NAMESPACE:dev}
-```
-
-## 微服务架构图
+### 分布式事务
 
 ```
-                    ┌─────────────────┐
-                    │   API Gateway   │
-                    │  (Spring Cloud  │
-                    │    Gateway)     │
-                    └────────┬────────┘
-                             │
-        ┌────────────────────┼────────────────────┐
-        │                    │                    │
-        ▼                    ▼                    ▼
-┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-│  User Service │   │ Order Service │   │Product Service│
-└───────┬───────┘   └───────┬───────┘   └───────┬───────┘
-        │                   │                   │
-        └───────────────────┼───────────────────┘
-                            │
-                 ┌──────────┴──────────┐
-                 │                     │
-                 ▼                     ▼
-        ┌───────────────┐     ┌───────────────┐
-        │     Nacos     │     │    Sentinel   │
-        │ (注册/配置)   │     │  (熔断限流)   │
-        └───────────────┘     └───────────────┘
+请帮我设计分布式事务方案：
+- 业务场景：[涉及的服务和操作]
+- 一致性要求：[强一致/最终一致]
+- 事务模式：[Seata AT/TCC/Saga]
+- 补偿策略：[回滚/补偿]
 ```
 
-## 最佳实践清单
+---
 
-- [ ] 使用 Nacos 作为注册和配置中心
-- [ ] 使用 OpenFeign + LoadBalancer 服务调用
-- [ ] 使用 Sentinel 实现熔断限流
-- [ ] 使用 Seata 处理分布式事务
-- [ ] 配置统一的网关鉴权
-- [ ] 实现服务间的链路追踪
-- [ ] 配置合理的超时和重试策略
-- [ ] 设计降级和容错方案
+## 决策指南
+
+### 注册中心选择
+
+```
+需求特点？
+├─ 阿里生态、配置一体化 → Nacos
+├─ Spring Cloud 原生 → Eureka（已停止维护）
+├─ 强一致性要求 → Consul / Zookeeper
+├─ Kubernetes 环境 → 使用 K8s Service
+└─ 多数据中心 → Consul
+```
+
+### 服务通信方式选择
+
+```
+调用场景？
+├─ 同步请求-响应 → OpenFeign + LoadBalancer
+├─ 高性能 RPC → gRPC
+├─ 异步解耦 → 消息队列（RocketMQ/Kafka）
+├─ 事件驱动 → Spring Cloud Stream
+└─ 广播通知 → 消息队列 Fanout
+```
+
+### 熔断策略选择
+
+```
+熔断场景？
+├─ QPS 限流 → Sentinel 流控规则
+├─ 并发数限流 → Sentinel 并发控制
+├─ 慢调用熔断 → 慢调用比例触发
+├─ 异常熔断 → 异常比例/数量触发
+└─ 热点参数限流 → Sentinel 热点规则
+```
+
+### 分布式事务模式选择
+
+```
+事务特点？
+├─ 简单 CRUD → Seata AT 模式（自动）
+├─ 复杂业务逻辑 → TCC 模式（手动编排）
+├─ 长事务流程 → Saga 模式
+├─ 最终一致即可 → 本地消息表 + 消息队列
+└─ 无事务要求 → 幂等设计 + 重试
+```
+
+---
+
+## 正反对比示例
+
+### 服务调用
+
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| RestTemplate 硬编码 URL | 使用 OpenFeign + 服务名 | 服务发现、负载均衡 |
+| 不配置 Fallback | 配置 FallbackFactory | 避免级联故障 |
+| 不传递请求头 | 使用 RequestInterceptor | 保持上下文（Token、TraceId） |
+| 不设置超时 | 配置合理的超时时间 | 避免线程阻塞 |
+
+### 熔断限流
+
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 不配置熔断 | 使用 Sentinel 配置熔断规则 | 防止雪崩 |
+| 熔断时直接报错 | 提供降级响应 | 保证基本可用 |
+| 限流规则硬编码 | 使用控制台动态配置 | 灵活调整 |
+| 所有接口同一限流 | 按业务重要性分级限流 | 保护核心链路 |
+
+### 配置管理
+
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 配置写在代码中 | 使用配置中心 | 配置与代码分离 |
+| 敏感配置明文存储 | 使用加密配置 | 安全性 |
+| 不区分环境配置 | 使用 profile 区分环境 | 环境隔离 |
+| 配置变更重启服务 | 使用 @RefreshScope | 动态刷新 |
+
+### 网关设计
+
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 每个服务独立鉴权 | 统一网关鉴权 | 集中管理、减少重复 |
+| 不限制请求频率 | 网关层限流 | 保护后端服务 |
+| 直接暴露微服务端口 | 通过网关统一暴露 | 安全性、可管理性 |
+| 不记录请求日志 | 网关统一记录访问日志 | 审计和排查 |
+
+---
+
+## 验证清单 (Validation Checklist)
+
+### 服务注册与发现
+
+- [ ] 所有服务是否注册到注册中心？
+- [ ] 健康检查是否配置正确？
+- [ ] 服务元数据是否完整？
+- [ ] 多实例负载均衡是否正常？
+
+### 熔断与限流
+
+- [ ] 核心接口是否配置限流？
+- [ ] 远程调用是否配置熔断？
+- [ ] 降级策略是否合理？
+- [ ] 规则是否支持动态调整？
+
+### 配置管理
+
+- [ ] 敏感配置是否加密？
+- [ ] 配置是否支持动态刷新？
+- [ ] 是否有配置变更审计？
+- [ ] 不同环境配置是否隔离？
+
+### 链路追踪
+
+- [ ] 是否有统一的 TraceId？
+- [ ] 跨服务调用是否传递上下文？
+- [ ] 日志是否包含追踪信息？
+- [ ] 是否配置了采样率？
+
+---
+
+## 护栏约束 (Guardrails)
+
+**允许 (✅)**：
+- 使用 Nacos 作为注册和配置中心
+- 使用 OpenFeign 进行服务调用
+- 使用 Sentinel 实现熔断限流
+- 使用 Seata 处理分布式事务
+
+**禁止 (❌)**：
+- NEVER 硬编码服务地址
+- NEVER 远程调用不设超时
+- NEVER 不配置熔断降级
+- NEVER 在网关层处理业务逻辑
+- NEVER 明文存储敏感配置
+
+**需澄清 (⚠️)**：
+- 注册中心选型：[NEEDS CLARIFICATION: Nacos/Eureka/Consul?]
+- 事务模式：[NEEDS CLARIFICATION: AT/TCC/Saga?]
+- 消息中间件：[NEEDS CLARIFICATION: RocketMQ/Kafka?]
+
+---
+
+## 常见问题诊断
+
+| 症状 | 可能原因 | 解决方案 |
+|------|----------|----------|
+| 服务发现失败 | 注册中心连接问题、服务未注册 | 检查网络、查看注册中心控制台 |
+| 调用超时 | 下游服务慢、超时设置不合理 | 分析链路耗时、调整超时 |
+| 熔断频繁触发 | 错误率高、阈值过低 | 排查错误原因、调整阈值 |
+| 配置不生效 | 未使用 @RefreshScope、缓存 | 检查注解、清除缓存 |
+| 分布式事务回滚失败 | 网络问题、补偿逻辑错误 | 检查 Seata Server、修复补偿 |
+| 请求丢失 | 限流过严、队列满 | 调整限流规则、扩容 |
+
+---
+
+## 微服务拆分原则
+
+### 服务划分
+
+```
+如何拆分服务？
+├─ 按业务领域 → 订单服务、用户服务、商品服务
+├─ 按变更频率 → 稳定服务与频繁变更服务分离
+├─ 按团队边界 → 康威定律，组织结构映射
+├─ 按扩展需求 → 高并发服务独立部署
+└─ 按数据边界 → 数据归属决定服务边界
+```
+
+### 服务粒度
+
+```
+粒度判断标准：
+1. 太大：多个团队维护同一服务 → 需拆分
+2. 太小：服务间调用过于频繁 → 考虑合并
+3. 合适：一个小团队可独立维护、部署
+```
+
+---
+
+## 网关核心功能
+
+### 网关职责
+
+```
+网关应该做什么？
+├─ 路由转发 → 根据路径分发到后端服务
+├─ 负载均衡 → 多实例流量分配
+├─ 统一鉴权 → JWT 验证、权限检查
+├─ 限流熔断 → 保护后端服务
+├─ 请求日志 → 访问日志记录
+├─ 协议转换 → HTTP 转 gRPC 等
+└─ 聚合接口 → BFF 模式聚合多个服务
+```
+
+### 过滤器设计
+
+```
+过滤器执行顺序：
+1. 认证过滤器 → 验证 Token
+2. 限流过滤器 → 检查限流规则
+3. 路由过滤器 → 转发请求
+4. 日志过滤器 → 记录请求响应
+5. 错误处理过滤器 → 统一错误格式
+```
+
+---
+
+## 输出格式要求
+
+当生成微服务方案时，MUST 遵循以下结构：
+
+```
+## 架构说明
+- 服务列表：[服务名及职责]
+- 通信方式：[同步/异步]
+- 技术选型：[使用的组件]
+
+## 核心配置
+- 注册中心配置要点
+- 网关路由规则
+- 熔断限流规则
+
+## 关键流程
+- [核心业务流程说明]
+
+## 容错设计
+- 熔断策略：[熔断条件和处理]
+- 降级方案：[降级逻辑]
+- 重试机制：[重试策略]
+
+## 注意事项
+- [部署和运维注意点]
+```

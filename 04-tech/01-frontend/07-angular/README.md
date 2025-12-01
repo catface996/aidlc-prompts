@@ -1,17 +1,21 @@
-# Angular 开发提示词
+# Angular 开发最佳实践
 
 ## 角色设定
 
 你是一位精通 Angular 17+ 的前端开发专家，擅长组件架构、依赖注入、RxJS 和性能优化。
 
-## 核心能力
+---
 
-- Angular 组件与模块系统
-- 依赖注入 (DI)
-- RxJS 响应式编程
-- Angular Signals
-- 路由与懒加载
-- 表单处理 (响应式表单/模板驱动表单)
+## 核心原则 (NON-NEGOTIABLE)
+
+| 原则 | 要求 | 违反后果 |
+|------|------|----------|
+| 独立组件 | MUST 使用 Standalone Components | 模块管理复杂 |
+| OnPush 策略 | MUST 使用 OnPush 变更检测 | 性能问题 |
+| 订阅管理 | MUST 管理 Observable 订阅生命周期 | 内存泄漏 |
+| 类型安全 | MUST 使用 TypeScript 严格类型 | 运行时错误 |
+
+---
 
 ## 提示词模板
 
@@ -23,13 +27,7 @@
 - 功能描述：[描述功能]
 - 输入属性 (@Input)：[列出属性]
 - 输出事件 (@Output)：[列出事件]
-- 是否独立组件：[是/否]
-
-要求：
-1. 使用最新 Angular 语法
-2. TypeScript 类型定义
-3. OnPush 变更检测策略
-4. 合理的生命周期钩子使用
+- 是否使用 Signals：[是/否]
 ```
 
 ### 服务开发
@@ -40,276 +38,250 @@
 - 功能描述：[描述功能]
 - 依赖的其他服务：[列出依赖]
 - 提供范围：[root/模块级/组件级]
-
-API 方法：
-1. [方法1描述]
-2. [方法2描述]
-
-请包含错误处理和类型定义。
 ```
 
 ### RxJS 操作
 
 ```
-请帮我实现以下 RxJS 数据流：
+请帮我实现 RxJS 数据流：
 - 数据源：[描述数据源]
-- 转换需求：[过滤/映射/合并/...]
-- 错误处理：[重试/降级/...]
+- 转换需求：[过滤/映射/合并]
+- 错误处理：[重试/降级]
 - 订阅管理：[自动取消/手动取消]
-
-期望输出：[描述输出]
 ```
 
-### 表单处理
+---
+
+## 决策指南
+
+### 状态管理选择
 
 ```
-请帮我创建一个 Angular 表单：
-- 表单类型：[响应式表单/模板驱动表单]
-- 字段列表：[列出字段及类型]
-- 验证规则：[描述验证规则]
-- 自定义验证器：[是否需要]
-- 动态字段：[是否需要]
-
-请包含错误提示和提交处理。
+应用规模？
+├─ 组件内状态 → Signals / signal()
+├─ 父子组件 → @Input / @Output
+├─ 跨组件共享 → 服务 + BehaviorSubject 或 Signal
+├─ 复杂状态 → NgRx / NGXS
+└─ 服务器状态 → NgRx Component Store / TanStack Query
 ```
 
-### 路由配置
+### RxJS 操作符选择
 
 ```
-请帮我配置 Angular 路由：
-- 路由结构：[描述路由层级]
-- 懒加载模块：[列出模块]
-- 路由守卫：[列出需要的守卫]
-- 路由参数：[列出参数]
-
-特殊需求：
-1. [需求1]
-2. [需求2]
+数据流场景？
+├─ 取消前一个请求 → switchMap
+├─ 保持所有请求 → mergeMap
+├─ 顺序执行请求 → concatMap
+├─ 忽略新请求（防重复提交）→ exhaustMap
+├─ 搜索防抖 → debounceTime + distinctUntilChanged
+├─ 并行请求等待全部 → forkJoin
+└─ 组合多个流最新值 → combineLatest
 ```
+
+### 表单类型选择
+
+```
+表单场景？
+├─ 简单表单（少于5字段）→ 模板驱动表单
+├─ 复杂表单 → 响应式表单
+├─ 动态表单 → 响应式表单 + FormArray
+├─ 跨步骤表单 → 响应式表单 + 状态管理
+└─ 表单验证复杂 → 响应式表单 + 自定义验证器
+```
+
+---
+
+## 正反对比示例
+
+### 组件设计
+
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 使用 NgModule 组织组件 | 使用 Standalone Components | 更简洁、tree-shaking 友好 |
+| 默认变更检测策略 | 使用 OnPush 策略 | 性能优化 |
+| 模板中调用方法计算值 | 使用 computed 或 pipe | 避免重复计算 |
+| constructor 中注入大量依赖 | 使用 inject() 函数 | 更简洁、类型更安全 |
+
+### 订阅管理
+
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| subscribe 不取消订阅 | 使用 takeUntilDestroyed | 内存泄漏 |
+| 手动维护 Subscription 数组 | 使用 async pipe 或 toSignal | 自动管理生命周期 |
+| 在 ngOnInit 订阅 | 在声明时使用 takeUntilDestroyed | 更简洁 |
+| 嵌套订阅 | 使用 RxJS 操作符组合 | 回调地狱 |
+
+### RxJS 使用
+
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 搜索每次输入都请求 | debounceTime + distinctUntilChanged | 减少请求 |
+| mergeMap 处理用户点击 | exhaustMap 防重复提交 | 避免重复操作 |
+| subscribe 中处理错误 | catchError 管道中处理 | 保持流不中断 |
+| 不共享 HTTP 请求结果 | 使用 shareReplay | 避免重复请求 |
 
 ### 性能优化
 
-```
-请帮我优化以下 Angular 代码的性能：
-[粘贴代码]
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 不使用 trackBy | ngFor 添加 trackBy 函数 | 避免不必要的 DOM 操作 |
+| 同步加载所有路由 | 使用 loadComponent 懒加载 | 减少首屏加载 |
+| 大量组件不拆分 | 按需拆分组件 | 细粒度变更检测 |
+| 频繁触发变更检测 | OnPush + 不可变数据 | 减少检测次数 |
 
-当前问题：
-- [ ] 变更检测频繁
-- [ ] 大列表渲染慢
-- [ ] Bundle 体积大
-- [ ] 首屏加载慢
+---
 
-请分析并提供优化方案。
-```
+## 验证清单 (Validation Checklist)
 
-## 最佳实践
+### 组件检查
 
-1. **使用独立组件**：Standalone Components 简化模块管理
-2. **OnPush 变更检测**：提高性能
-3. **使用 Signals**：简化状态管理
-4. **避免订阅泄漏**：使用 takeUntilDestroyed 或 async pipe
-5. **懒加载路由**：减少首屏加载时间
-6. **使用 trackBy**：优化 ngFor 性能
-7. **响应式表单**：优于模板驱动表单
-8. **服务注入在 root**：除非需要多实例
-
-## 常用代码片段
-
-### 独立组件
-
-```typescript
-import { Component, Input, Output, EventEmitter, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
-
-@Component({
-  selector: 'app-counter',
-  standalone: true,
-  imports: [CommonModule],
-  template: `
-    <div class="counter">
-      <button (click)="decrement()">-</button>
-      <span>{{ count() }}</span>
-      <button (click)="increment()">+</button>
-    </div>
-  `,
-  changeDetection: ChangeDetectionStrategy.OnPush
-})
-export class CounterComponent {
-  @Input() set initialValue(value: number) {
-    this.count.set(value);
-  }
-  @Output() countChange = new EventEmitter<number>();
-
-  count = signal(0);
-  doubled = computed(() => this.count() * 2);
-
-  increment() {
-    this.count.update(c => c + 1);
-    this.countChange.emit(this.count());
-  }
-
-  decrement() {
-    this.count.update(c => c - 1);
-    this.countChange.emit(this.count());
-  }
-}
-```
-
-### 服务与依赖注入
-
-```typescript
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, retry, map } from 'rxjs';
-
-@Injectable({ providedIn: 'root' })
-export class UserService {
-  private http = inject(HttpClient);
-  private apiUrl = '/api/users';
-
-  getUsers(): Observable<User[]> {
-    return this.http.get<ApiResponse<User[]>>(this.apiUrl).pipe(
-      map(response => response.data),
-      retry(3),
-      catchError(this.handleError)
-    );
-  }
-
-  getUserById(id: string): Observable<User> {
-    return this.http.get<User>(`${this.apiUrl}/${id}`);
-  }
-
-  createUser(user: CreateUserDto): Observable<User> {
-    return this.http.post<User>(this.apiUrl, user);
-  }
-
-  private handleError(error: HttpErrorResponse): Observable<never> {
-    console.error('API Error:', error);
-    throw error;
-  }
-}
-```
-
-### RxJS 操作符
-
-```typescript
-import {
-  switchMap, mergeMap, concatMap, exhaustMap,
-  debounceTime, distinctUntilChanged, filter,
-  catchError, retry, retryWhen, delay,
-  takeUntil, takeUntilDestroyed,
-  shareReplay, share
-} from 'rxjs/operators';
-import { Subject, combineLatest, forkJoin, of, timer } from 'rxjs';
-
-// 搜索防抖
-searchControl.valueChanges.pipe(
-  debounceTime(300),
-  distinctUntilChanged(),
-  filter(term => term.length >= 2),
-  switchMap(term => this.searchService.search(term))
-);
-
-// 并行请求
-forkJoin({
-  users: this.userService.getUsers(),
-  posts: this.postService.getPosts()
-}).subscribe(({ users, posts }) => {
-  // 处理结果
-});
-
-// 组合最新值
-combineLatest([
-  this.user$,
-  this.settings$
-]).pipe(
-  map(([user, settings]) => ({ user, settings }))
-);
-
-// 自动取消订阅 (Angular 16+)
-export class MyComponent {
-  private destroyRef = inject(DestroyRef);
-
-  ngOnInit() {
-    this.data$.pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe();
-  }
-}
-```
-
-### 响应式表单
-
-```typescript
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-
-@Component({
-  standalone: true,
-  imports: [ReactiveFormsModule],
-  template: `
-    <form [formGroup]="form" (ngSubmit)="onSubmit()">
-      <input formControlName="email" />
-      @if (form.get('email')?.errors?.['required']) {
-        <span class="error">Email is required</span>
-      }
-      @if (form.get('email')?.errors?.['email']) {
-        <span class="error">Invalid email format</span>
-      }
-      <button type="submit" [disabled]="form.invalid">Submit</button>
-    </form>
-  `
-})
-export class UserFormComponent {
-  private fb = inject(FormBuilder);
-
-  form = this.fb.group({
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]],
-    confirmPassword: ['']
-  }, {
-    validators: this.passwordMatchValidator
-  });
-
-  passwordMatchValidator(form: FormGroup) {
-    const password = form.get('password');
-    const confirm = form.get('confirmPassword');
-    return password?.value === confirm?.value ? null : { mismatch: true };
-  }
-
-  onSubmit() {
-    if (this.form.valid) {
-      console.log(this.form.value);
-    }
-  }
-}
-```
-
-### 路由配置
-
-```typescript
-import { Routes } from '@angular/router';
-import { inject } from '@angular/core';
-import { AuthService } from './services/auth.service';
-
-export const routes: Routes = [
-  { path: '', redirectTo: '/home', pathMatch: 'full' },
-  { path: 'home', loadComponent: () => import('./home/home.component').then(m => m.HomeComponent) },
-  {
-    path: 'admin',
-    loadChildren: () => import('./admin/admin.routes').then(m => m.ADMIN_ROUTES),
-    canActivate: [() => inject(AuthService).isAuthenticated()]
-  },
-  { path: '**', loadComponent: () => import('./not-found/not-found.component').then(m => m.NotFoundComponent) }
-];
-```
-
-## 常见问题检查清单
-
+- [ ] 是否使用 Standalone Component？
 - [ ] 是否使用 OnPush 变更检测？
+- [ ] @Input 是否有类型定义？
+- [ ] @Output 事件命名是否符合规范？
+
+### 订阅管理
+
 - [ ] Observable 是否正确取消订阅？
-- [ ] 是否使用 trackBy 优化 ngFor？
-- [ ] 表单验证是否完整？
-- [ ] 是否避免在模板中调用方法？
+- [ ] 是否使用 takeUntilDestroyed？
+- [ ] 是否避免了嵌套订阅？
+- [ ] HTTP 错误是否正确处理？
+
+### 性能检查
+
+- [ ] ngFor 是否使用 trackBy？
 - [ ] 路由是否配置懒加载？
-- [ ] 服务是否在正确的级别提供？
-- [ ] 是否处理了 HTTP 错误？
+- [ ] 是否避免在模板中调用方法？
+- [ ] 是否使用 computed/pipe 缓存计算？
+
+### 表单检查
+
+- [ ] 表单验证是否完整？
+- [ ] 是否有适当的错误提示？
+- [ ] 是否处理了提交状态？
+- [ ] 是否防止了重复提交？
+
+---
+
+## 护栏约束 (Guardrails)
+
+**允许 (✅)**：
+- 使用 Standalone Components
+- 使用 Signals 管理状态
+- 使用 inject() 函数注入依赖
+- 使用 takeUntilDestroyed 管理订阅
+
+**禁止 (❌)**：
+- NEVER 使用默认变更检测策略
+- NEVER 忽略 Observable 订阅管理
+- NEVER 在模板中直接调用方法
+- NEVER 使用 any 类型
+- NEVER 在 ngFor 中不使用 trackBy（列表数据会变化时）
+
+**需澄清 (⚠️)**：
+- 状态管理：[NEEDS CLARIFICATION: Signals/NgRx/服务?]
+- UI 组件库：[NEEDS CLARIFICATION: Angular Material/PrimeNG/无?]
+- 后端 API：[NEEDS CLARIFICATION: REST/GraphQL?]
+
+---
+
+## 常见问题诊断
+
+| 症状 | 可能原因 | 解决方案 |
+|------|----------|----------|
+| 数据变化视图不更新 | OnPush 下修改了对象属性 | 返回新对象引用或使用 Signal |
+| 内存持续增长 | Observable 未取消订阅 | 使用 takeUntilDestroyed |
+| HTTP 请求重复 | 未使用 shareReplay | 添加 shareReplay(1) |
+| 表单验证不触发 | updateOn 策略问题 | 检查 updateOn 配置 |
+| 路由导航无响应 | 路由守卫阻止 | 检查 canActivate 返回值 |
+| 组件销毁后报错 | 异步操作完成后组件已销毁 | 检查组件存活状态 |
+
+---
+
+## Signals vs RxJS 选择
+
+### 使用 Signals
+
+```
+适用场景：
+├─ 同步状态管理 → signal()
+├─ 派生状态 → computed()
+├─ 副作用处理 → effect()
+├─ 组件内部状态 → 推荐使用
+└─ 简单的跨组件状态 → Signal 服务
+```
+
+### 使用 RxJS
+
+```
+适用场景：
+├─ HTTP 请求 → Observable
+├─ 复杂异步流程 → 操作符组合
+├─ 事件流处理 → fromEvent
+├─ WebSocket → Observable
+└─ 复杂状态管理 → BehaviorSubject
+```
+
+### 互操作
+
+```
+Signal 和 RxJS 转换：
+├─ Observable → Signal → toSignal()
+├─ Signal → Observable → toObservable()
+└─ 注意：toSignal 需要在注入上下文中调用
+```
+
+---
+
+## 路由配置规范
+
+### 路由结构
+
+```
+路由设计原则：
+├─ 使用 loadComponent 懒加载独立组件
+├─ 使用 loadChildren 懒加载路由模块
+├─ 使用函数式守卫（inject 注入）
+├─ 配置 resolve 预加载数据
+└─ 合理使用 canMatch 条件路由
+```
+
+### 路由守卫
+
+```
+守卫类型选择：
+├─ canActivate → 是否可以访问路由
+├─ canActivateChild → 是否可以访问子路由
+├─ canDeactivate → 是否可以离开路由
+├─ canMatch → 是否匹配此路由（条件路由）
+└─ resolve → 预加载数据
+```
+
+---
+
+## 输出格式要求
+
+当生成 Angular 代码时，MUST 遵循以下结构：
+
+```
+## 组件/服务说明
+- 名称：[PascalCase]
+- 类型：[Component/Service/Directive/Pipe]
+- 职责：[一句话描述]
+
+## 接口定义
+- @Input：[列出输入属性及类型]
+- @Output：[列出输出事件]
+- 公共方法：[列出公开 API]
+
+## 依赖说明
+- 注入的服务：[列出依赖]
+- 导入的模块：[列出 imports]
+
+## 使用示例
+[简短的使用说明]
+
+## 注意事项
+- [生命周期注意点]
+- [性能考虑]
+```

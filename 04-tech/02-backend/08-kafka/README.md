@@ -4,6 +4,19 @@
 
 你是一位精通 Apache Kafka 的消息中间件专家，擅长高吞吐消息处理、分区策略和消费者组管理。
 
+---
+
+## 核心原则 (NON-NEGOTIABLE)
+
+| 原则 | 要求 | 违反后果 |
+|------|------|----------|
+| 消费幂等 | MUST 所有消费者实现幂等处理 | 数据重复 |
+| 手动提交 | MUST 使用手动提交 Offset | 消息丢失或重复 |
+| 分区设计 | MUST 合理设计分区数和分区键 | 顺序问题、负载不均 |
+| 监控告警 | MUST 监控消费者 Lag | 消息堆积不可知 |
+
+---
+
 ## 提示词模板
 
 ### Kafka 方案设计
@@ -14,343 +27,299 @@
 - 吞吐量要求：[预估 QPS]
 - 消息大小：[消息体大小]
 - 顺序要求：[全局有序/分区有序/无序]
-- 可靠性要求：[至少一次/至多一次/精确一次]
-
-请提供：
-1. Topic 设计
-2. 分区策略
-3. 生产者配置
-4. 消费者配置
+- 可靠性要求：[至少一次/精确一次]
 ```
 
-## 核心代码示例
+### 分区策略设计
 
-### Spring Kafka 配置
-
-```yaml
-spring:
-  kafka:
-    bootstrap-servers: ${KAFKA_SERVERS:localhost:9092}
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: all
-      retries: 3
-      batch-size: 16384
-      buffer-memory: 33554432
-      properties:
-        linger.ms: 10
-        enable.idempotence: true
-    consumer:
-      group-id: ${spring.application.name}
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      auto-offset-reset: earliest
-      enable-auto-commit: false
-      properties:
-        spring.json.trusted.packages: "*"
-        max.poll.records: 500
-        max.poll.interval.ms: 300000
-    listener:
-      ack-mode: manual_immediate
-      concurrency: 3
+```
+请帮我设计 Kafka 分区策略：
+- 业务键：[用于分区的业务字段]
+- 顺序要求：[同一实体消息顺序]
+- 负载均衡：[是否需要均匀分布]
+- 消费者数量：[预估消费者数]
 ```
 
-### 生产者
+### 性能优化
 
-```java
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class KafkaProducerService {
-
-    private final KafkaTemplate<String, Object> kafkaTemplate;
-
-    /**
-     * 同步发送
-     */
-    public void sendSync(String topic, String key, Object message) {
-        try {
-            SendResult<String, Object> result = kafkaTemplate.send(topic, key, message).get();
-            RecordMetadata metadata = result.getRecordMetadata();
-            log.info("Sent message to topic={}, partition={}, offset={}",
-                metadata.topic(), metadata.partition(), metadata.offset());
-        } catch (Exception e) {
-            log.error("Failed to send message", e);
-            throw new RuntimeException("Send message failed", e);
-        }
-    }
-
-    /**
-     * 异步发送
-     */
-    public void sendAsync(String topic, String key, Object message) {
-        CompletableFuture<SendResult<String, Object>> future =
-            kafkaTemplate.send(topic, key, message);
-
-        future.whenComplete((result, ex) -> {
-            if (ex == null) {
-                RecordMetadata metadata = result.getRecordMetadata();
-                log.info("Async sent to partition={}, offset={}",
-                    metadata.partition(), metadata.offset());
-            } else {
-                log.error("Failed to send message", ex);
-                // 补偿逻辑
-            }
-        });
-    }
-
-    /**
-     * 发送到指定分区
-     */
-    public void sendToPartition(String topic, int partition, String key, Object message) {
-        kafkaTemplate.send(topic, partition, key, message);
-    }
-
-    /**
-     * 带回调的发送
-     */
-    public void sendWithCallback(String topic, Object message,
-            Consumer<SendResult<String, Object>> onSuccess,
-            Consumer<Throwable> onFailure) {
-        kafkaTemplate.send(topic, message).whenComplete((result, ex) -> {
-            if (ex == null) {
-                onSuccess.accept(result);
-            } else {
-                onFailure.accept(ex);
-            }
-        });
-    }
-}
+```
+请帮我优化 Kafka 性能：
+- 当前问题：[吞吐低/延迟高/消费慢]
+- 消息规模：[消息大小/QPS]
+- 现有配置：[关键配置参数]
 ```
 
-### 消费者
+---
 
-```java
-@Service
-@Slf4j
-public class OrderKafkaConsumer {
+## 决策指南
 
-    @Autowired
-    private OrderService orderService;
+### Kafka vs RocketMQ 选择
 
-    @Autowired
-    private IdempotentService idempotentService;
-
-    /**
-     * 单条消费
-     */
-    @KafkaListener(
-        topics = "order-topic",
-        groupId = "order-consumer-group",
-        containerFactory = "kafkaListenerContainerFactory"
-    )
-    public void consume(ConsumerRecord<String, OrderEvent> record, Acknowledgment ack) {
-        String messageId = record.key();
-        OrderEvent event = record.value();
-
-        log.info("Received message: topic={}, partition={}, offset={}, key={}",
-            record.topic(), record.partition(), record.offset(), messageId);
-
-        try {
-            // 幂等检查
-            if (!idempotentService.checkAndMark(messageId)) {
-                log.warn("Duplicate message: {}", messageId);
-                ack.acknowledge();
-                return;
-            }
-
-            // 处理业务
-            orderService.processOrder(event);
-
-            // 手动提交
-            ack.acknowledge();
-        } catch (Exception e) {
-            log.error("Failed to process message: {}", messageId, e);
-            idempotentService.removeMark(messageId);
-            // 不提交，会重试
-            throw e;
-        }
-    }
-
-    /**
-     * 批量消费
-     */
-    @KafkaListener(
-        topics = "batch-topic",
-        groupId = "batch-consumer-group",
-        containerFactory = "batchKafkaListenerContainerFactory"
-    )
-    public void consumeBatch(List<ConsumerRecord<String, Object>> records, Acknowledgment ack) {
-        log.info("Received batch: size={}", records.size());
-
-        try {
-            List<Object> messages = records.stream()
-                .map(ConsumerRecord::value)
-                .toList();
-
-            // 批量处理
-            processBatch(messages);
-
-            ack.acknowledge();
-        } catch (Exception e) {
-            log.error("Batch processing failed", e);
-            throw e;
-        }
-    }
-
-    /**
-     * 并发消费 - 多分区
-     */
-    @KafkaListener(
-        topics = "concurrent-topic",
-        groupId = "concurrent-group",
-        concurrency = "3"  // 3个消费者线程
-    )
-    public void consumeConcurrent(ConsumerRecord<String, Object> record, Acknowledgment ack) {
-        log.info("Thread={}, partition={}", Thread.currentThread().getName(), record.partition());
-        // 处理逻辑
-        ack.acknowledge();
-    }
-}
 ```
+使用场景？
+├─ 高吞吐日志收集 → Kafka
+├─ 大数据流处理 → Kafka
+├─ 延迟消息需求 → RocketMQ
+├─ 事务消息（更完善）→ RocketMQ
+├─ 阿里云环境 → RocketMQ
+└─ 跨语言、生态丰富 → Kafka
+```
+
+### 分区数设计
+
+```
+分区数考虑因素？
+├─ 消费者并行度 → 分区数 >= 消费者实例数
+├─ 吞吐量要求 → 更多分区 = 更高并行度
+├─ 顺序要求 → 同一 Key 在同一分区
+├─ 管理开销 → 过多分区增加元数据开销
+└─ 建议：预估峰值消费者数的 2-3 倍
+```
+
+### ACK 配置选择
+
+```
+可靠性要求？
+├─ acks=0 → 不等待确认（最高吞吐，可能丢消息）
+├─ acks=1 → Leader 确认（平衡方案）
+└─ acks=all → 所有副本确认（最高可靠）
+```
+
+---
+
+## 正反对比示例
+
+### 生产者配置
+
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| acks=0 用于重要消息 | acks=all 保证持久化 | 消息可能丢失 |
+| 不设置消息 Key | 设置业务键作为 Key | 无法保证顺序 |
+| 同步发送不批量 | 启用批量发送（linger.ms） | 吞吐量低 |
+| 不启用幂等 | enable.idempotence=true | 重复消息 |
 
 ### 消费者配置
 
-```java
-@Configuration
-@EnableKafka
-public class KafkaConfig {
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 自动提交 Offset | 手动提交（处理完成后） | 消息丢失或重复 |
+| 不实现幂等消费 | 基于消息 Key 去重 | 重复处理 |
+| max.poll.records 过大 | 根据处理能力调整 | 消费超时 |
+| 不监控 Consumer Lag | 配置 Lag 监控告警 | 堆积不可见 |
 
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
-            ConsumerFactory<String, Object> consumerFactory) {
-        ConcurrentKafkaListenerContainerFactory<String, Object> factory =
-            new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory);
-        factory.setConcurrency(3);
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+### 分区设计
 
-        // 错误处理
-        factory.setCommonErrorHandler(new DefaultErrorHandler(
-            new DeadLetterPublishingRecoverer(kafkaTemplate()),
-            new FixedBackOff(1000L, 3) // 重试3次，间隔1秒
-        ));
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 分区数少于消费者数 | 分区数 >= 消费者数 | 消费者空闲 |
+| 分区键选择不当 | 使用业务主键 | 热点问题 |
+| 分区数频繁变更 | 预留足够分区数 | Key 路由变化 |
+| 所有 Topic 相同分区数 | 按业务量差异化配置 | 资源浪费 |
 
-        return factory;
-    }
+### 可靠性保证
 
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, Object> batchKafkaListenerContainerFactory(
-            ConsumerFactory<String, Object> consumerFactory) {
-        ConcurrentKafkaListenerContainerFactory<String, Object> factory =
-            new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory);
-        factory.setBatchListener(true);  // 批量消费
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        return factory;
-    }
-}
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 副本数=1 | 副本数>=3 | 单点故障 |
+| min.insync.replicas=1 | min.insync.replicas>=2 | 数据丢失风险 |
+| 不配置死信队列 | 配置 DLQ 处理失败消息 | 问题消息丢失 |
+| 不处理 Rebalance | 正确处理 Rebalance 回调 | 重复消费 |
+
+---
+
+## 验证清单 (Validation Checklist)
+
+### 生产者检查
+
+- [ ] acks 配置是否符合可靠性要求？
+- [ ] 是否启用幂等生产（enable.idempotence）？
+- [ ] 是否设置合适的消息 Key？
+- [ ] 批量配置是否合理（batch.size, linger.ms）？
+
+### 消费者检查
+
+- [ ] 是否使用手动提交 Offset？
+- [ ] 是否实现幂等消费？
+- [ ] max.poll.records 是否合理？
+- [ ] 是否处理了 Rebalance 事件？
+
+### 运维检查
+
+- [ ] 是否监控 Consumer Lag？
+- [ ] 是否配置死信队列？
+- [ ] 副本数和 ISR 是否合理？
+- [ ] 是否有数据保留策略？
+
+---
+
+## 护栏约束 (Guardrails)
+
+**允许 (✅)**：
+- 使用 acks=all 保证可靠性
+- 使用幂等生产者
+- 使用手动提交 Offset
+- 按业务键分区保证顺序
+
+**禁止 (❌)**：
+- NEVER 重要消息使用 acks=0
+- NEVER 使用自动提交 Offset
+- NEVER 消费不实现幂等
+- NEVER 忽略 Consumer Lag
+- NEVER 单副本部署生产环境
+
+**需澄清 (⚠️)**：
+- 可靠性级别：[NEEDS CLARIFICATION: acks=1/acks=all?]
+- 顺序要求：[NEEDS CLARIFICATION: 全局/分区/无?]
+- 消费模式：[NEEDS CLARIFICATION: 实时/批量?]
+
+---
+
+## 常见问题诊断
+
+| 症状 | 可能原因 | 解决方案 |
+|------|----------|----------|
+| 消息丢失 | acks 配置不当、Offset 提交时机 | 使用 acks=all、手动提交 |
+| 消息重复 | Rebalance、消费失败重试 | 实现幂等消费 |
+| 消费堆积 | 消费能力不足、处理耗时 | 增加消费者、优化处理 |
+| 顺序错乱 | 分区键不一致、并行消费 | 检查分区键、单分区单消费者 |
+| 消费超时 | max.poll.interval.ms 过短 | 调整超时配置 |
+| Rebalance 频繁 | 消费者心跳超时 | 调整心跳配置 |
+
+---
+
+## 分区策略设计
+
+### 分区键选择
+
+```
+分区键设计原则：
+├─ 保证顺序 → 使用业务主键（如订单ID）
+├─ 负载均衡 → 使用分布均匀的键
+├─ 避免热点 → 避免使用少数值的键
+└─ 一致性 → 同一业务实体使用相同键
 ```
 
 ### 自定义分区器
 
-```java
-public class OrderPartitioner implements Partitioner {
-
-    @Override
-    public int partition(String topic, Object key, byte[] keyBytes,
-                        Object value, byte[] valueBytes, Cluster cluster) {
-        List<PartitionInfo> partitions = cluster.partitionsForTopic(topic);
-        int numPartitions = partitions.size();
-
-        if (key == null) {
-            // 无 key 时轮询
-            return ThreadLocalRandom.current().nextInt(numPartitions);
-        }
-
-        // 按用户ID分区，保证同一用户的消息顺序
-        String userId = key.toString();
-        return Math.abs(userId.hashCode()) % numPartitions;
-    }
-
-    @Override
-    public void close() {}
-
-    @Override
-    public void configure(Map<String, ?> configs) {}
-}
+```
+自定义分区器场景：
+├─ 特定键路由到特定分区
+├─ 按业务规则分区
+├─ 避免热点的特殊处理
+└─ 灰度发布分流
 ```
 
-### 事务消息
+---
 
-```java
-@Service
-@RequiredArgsConstructor
-public class TransactionalKafkaService {
+## 关键配置说明
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+### 生产者配置
 
-    /**
-     * 事务发送
-     */
-    @Transactional
-    public void sendInTransaction(List<OrderEvent> events) {
-        kafkaTemplate.executeInTransaction(operations -> {
-            for (OrderEvent event : events) {
-                operations.send("order-topic", event.getOrderId(), event);
-            }
-            return null;
-        });
-    }
-
-    /**
-     * 配合数据库事务
-     */
-    @Transactional
-    public void createOrderWithKafka(Order order) {
-        // 1. 保存订单到数据库
-        orderRepository.save(order);
-
-        // 2. 发送消息到 Kafka (同一事务)
-        kafkaTemplate.send("order-topic", order.getId().toString(), new OrderCreatedEvent(order));
-    }
-}
-
-// 事务配置
-@Bean
-public KafkaTransactionManager<String, Object> kafkaTransactionManager(
-        ProducerFactory<String, Object> producerFactory) {
-    return new KafkaTransactionManager<>(producerFactory);
-}
+```
+关键生产者配置：
+├─ acks → 确认级别（0/1/all）
+├─ retries → 重试次数
+├─ batch.size → 批量大小（字节）
+├─ linger.ms → 批量等待时间
+├─ buffer.memory → 缓冲区大小
+├─ compression.type → 压缩算法
+└─ enable.idempotence → 幂等生产
 ```
 
-## Topic 设计规范
+### 消费者配置
 
-| 业务 | Topic 命名 | 分区数 | 副本数 |
-|------|------------|--------|--------|
-| 订单 | order-events | 12 | 3 |
-| 用户 | user-events | 6 | 3 |
-| 日志 | app-logs | 24 | 2 |
-| 指标 | metrics | 12 | 2 |
+```
+关键消费者配置：
+├─ enable.auto.commit → 自动提交开关
+├─ auto.offset.reset → Offset 重置策略
+├─ max.poll.records → 单次拉取数量
+├─ max.poll.interval.ms → 拉取间隔上限
+├─ session.timeout.ms → 会话超时
+├─ heartbeat.interval.ms → 心跳间隔
+└─ isolation.level → 事务隔离级别
+```
 
-## Kafka vs RocketMQ
+---
 
-| 特性 | Kafka | RocketMQ |
-|------|-------|----------|
-| 吞吐量 | 更高 | 高 |
-| 延迟消息 | 不支持 | 支持 |
-| 事务消息 | 支持 | 更完善 |
-| 消息回溯 | 按偏移量 | 按时间 |
-| 运维复杂度 | 较高 | 较低 |
+## 事务消息
 
-## 最佳实践清单
+### 事务使用场景
 
-- [ ] 合理设置分区数 (建议为消费者数的整数倍)
-- [ ] 启用幂等生产者 (enable.idempotence=true)
-- [ ] 消费者手动提交 Offset
-- [ ] 实现消费幂等
-- [ ] 配置死信队列
-- [ ] 监控消费者 Lag
-- [ ] 按业务 Key 分区保证顺序
-- [ ] 批量消费提高吞吐
+```
+Kafka 事务场景：
+├─ 精确一次语义（EOS）
+├─ 跨 Topic 原子写入
+├─ 消费-处理-生产原子操作
+└─ 流处理应用
+```
+
+### 事务配置要点
+
+```
+事务配置：
+1. 生产者设置 transactional.id
+2. 消费者设置 isolation.level=read_committed
+3. 事务操作顺序：
+   - beginTransaction
+   - send / sendOffsetsToTransaction
+   - commitTransaction / abortTransaction
+```
+
+---
+
+## 性能调优
+
+### 吞吐优化
+
+```
+提高吞吐量：
+├─ 增加分区数（提高并行度）
+├─ 增加 batch.size 和 linger.ms
+├─ 启用压缩（compression.type=lz4）
+├─ 使用异步发送
+└─ 批量消费（增加 max.poll.records）
+```
+
+### 延迟优化
+
+```
+降低延迟：
+├─ 减小 linger.ms（减少等待）
+├─ 减小批量大小
+├─ 使用 acks=1（牺牲可靠性）
+└─ 消费者及时处理
+```
+
+---
+
+## 输出格式要求
+
+当生成 Kafka 方案时，MUST 遵循以下结构：
+
+```
+## 方案说明
+- 业务场景：[场景描述]
+- 吞吐要求：[QPS]
+- 可靠性级别：[acks 配置]
+
+## Topic 设计
+- Topic 名称：[命名]
+- 分区数：[数量及原因]
+- 副本数：[数量]
+- 分区键：[键的选择]
+
+## 生产者配置
+- 确认级别：[acks]
+- 批量配置：[batch.size, linger.ms]
+- 幂等配置：[enable.idempotence]
+
+## 消费者配置
+- 消费组：[group.id]
+- 提交方式：[手动/自动]
+- 并发配置：[concurrency]
+- 幂等方案：[去重策略]
+
+## 注意事项
+- [监控告警配置]
+- [运维注意事项]
+```

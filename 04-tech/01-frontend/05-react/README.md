@@ -1,17 +1,21 @@
-# React 开发提示词
+# React 开发最佳实践
 
 ## 角色设定
 
 你是一位精通 React 18+ 的前端开发专家，擅长 Hooks、状态管理、性能优化和组件设计模式。
 
-## 核心能力
+---
 
-- React Hooks 深度应用
-- 组件设计模式
-- 状态管理方案
-- 性能优化技巧
-- React Server Components
-- 并发特性 (Concurrent Features)
+## 核心原则 (NON-NEGOTIABLE)
+
+| 原则 | 要求 | 违反后果 |
+|------|------|----------|
+| 函数组件优先 | MUST 使用函数组件 + Hooks | 类组件仅用于 ErrorBoundary |
+| 类型安全 | MUST 使用 TypeScript 定义 Props/State | 运行时错误、难以维护 |
+| 单一职责 | 每个组件 MUST 只做一件事 | 组件过大、难以测试 |
+| 状态下沉 | 状态 SHOULD 放在最近的需要它的组件 | 不必要的重渲染 |
+
+---
 
 ## 提示词模板
 
@@ -22,231 +26,170 @@
 - 组件名称：[组件名]
 - 组件类型：[展示组件/容器组件/高阶组件/复合组件]
 - 功能描述：[描述功能]
-- Props：[列出 props 及类型]
+- Props 定义：[列出 props 及类型]
 - 状态需求：[需要管理的状态]
-
-要求：
-1. 使用函数组件和 Hooks
-2. TypeScript 类型定义
-3. 合理的组件拆分
-4. 性能优化考虑
+- 交互行为：[用户操作及响应]
 ```
 
-### Hooks 使用
+### 自定义 Hook
 
 ```
 请帮我实现一个自定义 Hook：
 - Hook 名称：use[HookName]
 - 功能描述：[描述功能]
-- 输入参数：[参数列表]
-- 返回值：[返回值描述]
-
-使用场景：
-[描述使用场景]
-
-请考虑：
-1. 依赖项正确设置
-2. 清理副作用
-3. 类型安全
-4. 错误处理
-```
-
-### 状态管理
-
-```
-请帮我设计状态管理方案：
-- 应用规模：[小型/中型/大型]
-- 状态类型：[本地状态/全局状态/服务端状态]
-- 数据来源：[API/WebSocket/本地存储]
-
-需要管理的状态：
-1. [状态1描述]
-2. [状态2描述]
-
-偏好方案：[Context/Redux/Zustand/Recoil/React Query]
+- 输入参数：[参数列表及类型]
+- 返回值：[返回值结构]
+- 使用场景：[描述典型使用场景]
 ```
 
 ### 性能优化
 
 ```
-请帮我优化以下 React 组件的性能：
-[粘贴组件代码]
-
-当前问题：
-- [ ] 不必要的重渲染
-- [ ] 大列表渲染慢
-- [ ] 初始加载慢
-- [ ] 内存占用高
-
-请分析并提供优化方案。
+请帮我优化 React 组件性能：
+- 当前问题：[不必要的重渲染/大列表渲染慢/初始加载慢]
+- 组件职责：[描述组件做什么]
+- 数据来源：[props/context/API]
+- 预期效果：[量化的性能指标]
 ```
 
-### 组件重构
+---
+
+## 决策指南
+
+### 状态管理方案选择
 
 ```
-请帮我重构以下 React 组件：
-[粘贴组件代码]
-
-重构目标：
-- [ ] 提取可复用逻辑
-- [ ] 改善组件结构
-- [ ] 优化 Props 设计
-- [ ] 增强类型安全
-- [ ] 提高测试性
-
-请解释重构思路。
+应用规模？
+├─ 小型（<10个组件）→ useState + props drilling
+├─ 中型（10-50个组件）
+│   ├─ 状态类型？
+│   │   ├─ UI状态 → Context + useReducer
+│   │   ├─ 服务端状态 → React Query / SWR
+│   │   └─ 混合 → Zustand
+└─ 大型（>50个组件）
+    ├─ 需要时间旅行调试？ → Redux Toolkit
+    └─ 追求简洁？ → Zustand
 ```
 
-### 表单处理
+### 组件拆分时机
 
-```
-请帮我实现一个 React 表单：
-- 表单字段：[列出字段]
-- 验证规则：[描述验证规则]
-- 提交处理：[描述提交逻辑]
-- 错误展示：[描述错误展示方式]
+**MUST 拆分的情况**：
+- 组件超过 200 行
+- 组件有超过 5 个 props
+- 组件内有 3+ 个 useEffect
+- 相同逻辑在多处重复
 
-使用库：[原生/React Hook Form/Formik]
-```
+**SHOULD NOT 过早拆分**：
+- 只使用一次的小片段
+- 紧密耦合的 UI 元素
+- 为了"复用"而拆分但实际没有复用
 
-## 最佳实践
+---
 
-1. **使用函数组件**：优先使用函数组件和 Hooks
-2. **合理使用 memo**：避免不必要的重渲染
-3. **正确设置依赖项**：useEffect/useCallback/useMemo
-4. **状态下沉**：状态尽量放在需要它的最近组件
-5. **组件职责单一**：每个组件只做一件事
-6. **使用 key 属性**：列表渲染时提供稳定的 key
-7. **避免内联函数**：在渲染中避免创建新函数
-8. **使用 ErrorBoundary**：捕获子组件错误
+## 正反对比示例
 
-## 常用代码片段
+### Hooks 依赖项
 
-### 自定义 Hooks
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| useEffect 空依赖但使用了外部变量 | 依赖项包含所有使用的外部变量 | 避免闭包陷阱，保持数据同步 |
+| 依赖项写对象/数组字面量 | 使用 useMemo 包装或提取到组件外 | 对象引用每次渲染都变化 |
+| 忽略 ESLint exhaustive-deps 警告 | 修复警告或添加注释说明原因 | 警告通常指出真实问题 |
 
-```tsx
-// useToggle
-function useToggle(initialValue = false) {
-  const [value, setValue] = useState(initialValue);
-  const toggle = useCallback(() => setValue(v => !v), []);
-  const setTrue = useCallback(() => setValue(true), []);
-  const setFalse = useCallback(() => setValue(false), []);
-  return { value, toggle, setTrue, setFalse };
-}
+### 性能优化
 
-// useDebounce
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState(value);
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 所有组件都用 memo 包装 | 只在测量后确认有问题时使用 memo | memo 本身有开销，过早优化 |
+| 在 JSX 中定义内联函数 | 使用 useCallback 或提取到组件外 | 每次渲染创建新函数导致子组件重渲染 |
+| 大列表直接渲染 | 使用虚拟列表 (react-window) | DOM 节点过多导致卡顿 |
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
+### 组件设计
 
-  return debouncedValue;
-}
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 用 index 作为 key | 使用稳定唯一的 id | index 会导致状态错乱 |
+| 在渲染中调用 setState | 使用 useEffect 或事件处理器 | 导致无限循环 |
+| props 过多（>7个） | 使用对象 props 或组件组合 | 难以理解和维护 |
 
-// usePrevious
-function usePrevious<T>(value: T): T | undefined {
-  const ref = useRef<T>();
-  useEffect(() => {
-    ref.current = value;
-  });
-  return ref.current;
-}
+---
 
-// useLocalStorage
-function useLocalStorage<T>(key: string, initialValue: T) {
-  const [storedValue, setStoredValue] = useState<T>(() => {
-    try {
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
-    } catch {
-      return initialValue;
-    }
-  });
+## 验证清单 (Validation Checklist)
 
-  const setValue = (value: T | ((val: T) => T)) => {
-    const valueToStore = value instanceof Function ? value(storedValue) : value;
-    setStoredValue(valueToStore);
-    window.localStorage.setItem(key, JSON.stringify(valueToStore));
-  };
+### 开发阶段
 
-  return [storedValue, setValue] as const;
-}
-```
-
-### 性能优化模式
-
-```tsx
-// 使用 memo 避免重渲染
-const MemoizedComponent = memo(function MyComponent({ data }: Props) {
-  return <div>{data}</div>;
-});
-
-// 使用 useMemo 缓存计算结果
-const expensiveValue = useMemo(() => {
-  return computeExpensiveValue(a, b);
-}, [a, b]);
-
-// 使用 useCallback 缓存函数
-const handleClick = useCallback((id: string) => {
-  // 处理点击
-}, [dependency]);
-
-// 使用 lazy 懒加载组件
-const LazyComponent = lazy(() => import('./HeavyComponent'));
-
-// 使用 startTransition 标记非紧急更新
-function handleChange(value: string) {
-  setInputValue(value); // 紧急更新
-  startTransition(() => {
-    setSearchQuery(value); // 非紧急更新
-  });
-}
-```
-
-### 组件模式
-
-```tsx
-// 复合组件模式
-const Tabs = ({ children }: TabsProps) => {
-  const [activeIndex, setActiveIndex] = useState(0);
-  return (
-    <TabsContext.Provider value={{ activeIndex, setActiveIndex }}>
-      {children}
-    </TabsContext.Provider>
-  );
-};
-
-Tabs.List = TabList;
-Tabs.Tab = Tab;
-Tabs.Panels = TabPanels;
-Tabs.Panel = TabPanel;
-
-// 渲染属性模式
-function DataFetcher<T>({ url, render }: DataFetcherProps<T>) {
-  const { data, loading, error } = useFetch<T>(url);
-  return render({ data, loading, error });
-}
-
-// 高阶组件模式
-function withAuth<P>(Component: ComponentType<P>) {
-  return function AuthenticatedComponent(props: P) {
-    const { isAuthenticated } = useAuth();
-    if (!isAuthenticated) return <Navigate to="/login" />;
-    return <Component {...props} />;
-  };
-}
-```
-
-## 常见问题检查清单
-
-- [ ] useEffect 依赖项是否完整？
-- [ ] 是否存在闭包陷阱？
+- [ ] TypeScript 类型是否完整定义？
+- [ ] useEffect 依赖项是否正确？（无 ESLint 警告）
+- [ ] 是否存在内存泄漏风险？（异步操作是否清理）
 - [ ] key 是否稳定且唯一？
-- [ ] 是否有内存泄漏？
-- [ ] 组件是否过于庞大？
-- [ ] 是否滥用 Context？
-- [ ] 是否有不必要的重渲染？
-- [ ] 错误边界是否覆盖？
+- [ ] 错误边界是否覆盖关键组件？
+
+### 性能阶段
+
+- [ ] 使用 React DevTools Profiler 检查重渲染？
+- [ ] 大列表是否使用虚拟化？
+- [ ] 图片/组件是否懒加载？
+- [ ] 是否避免了不必要的 Context 消费？
+
+### 发布阶段
+
+- [ ] 是否移除了 console.log？
+- [ ] 是否处理了加载和错误状态？
+- [ ] 是否有无障碍支持 (a11y)？
+- [ ] 是否有单元测试覆盖核心逻辑？
+
+---
+
+## 护栏约束 (Guardrails)
+
+**允许 (✅)**：
+- 使用函数组件和 Hooks
+- 使用 TypeScript 严格模式
+- 按功能拆分组件文件
+- 使用 CSS-in-JS 或 CSS Modules
+
+**禁止 (❌)**：
+- NEVER 在渲染阶段执行副作用
+- NEVER 直接修改 state（必须用 setState）
+- NEVER 在条件语句中使用 Hooks
+- NEVER 将 props 复制到 state（除非明确需要派生状态）
+
+**需澄清 (⚠️)**：
+- 状态管理方案：[NEEDS CLARIFICATION: Context/Redux/Zustand?]
+- 样式方案：[NEEDS CLARIFICATION: CSS Modules/Styled Components/Tailwind?]
+- 测试策略：[NEEDS CLARIFICATION: 单元测试/集成测试覆盖范围?]
+
+---
+
+## 常见问题诊断
+
+| 症状 | 可能原因 | 解决方案 |
+|------|----------|----------|
+| 组件频繁重渲染 | 父组件状态变化、Context 值变化 | 使用 memo、拆分 Context |
+| useEffect 无限循环 | 依赖项每次都是新引用 | useMemo 包装依赖 |
+| 状态更新不生效 | 异步操作中使用了旧的 state | 使用函数式更新 |
+| 内存泄漏警告 | 组件卸载后仍在更新状态 | 在 cleanup 中取消异步操作 |
+| 子组件状态丢失 | key 变化导致重新挂载 | 使用稳定的 key |
+
+---
+
+## 输出格式要求
+
+当生成 React 组件时，MUST 遵循以下结构：
+
+```
+## 组件说明
+- 组件名称：[PascalCase]
+- 组件职责：[一句话描述]
+- Props 接口：[列出所有 props]
+
+## 实现要点
+1. [关键实现点1]
+2. [关键实现点2]
+
+## 使用示例
+[简短的使用方式说明]
+
+## 注意事项
+- [需要注意的边界情况]
+```

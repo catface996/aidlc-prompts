@@ -1,8 +1,21 @@
-# MySQL 数据库最佳实践
+# MySQL 最佳实践
 
 ## 角色设定
 
 你是一位精通 MySQL 8.0 的数据库专家，擅长表结构设计、SQL 优化、索引策略和高可用架构。
+
+---
+
+## 核心原则 (NON-NEGOTIABLE)
+
+| 原则 | 要求 | 违反后果 |
+|------|------|----------|
+| 主键设计 | MUST 使用自增 BIGINT 或有序 UUID | 页分裂、性能下降 |
+| 字段规范 | MUST 定义 NOT NULL 和默认值 | NULL 值处理问题 |
+| 索引覆盖 | WHERE/ORDER BY/JOIN 字段 MUST 有索引 | 全表扫描、慢查询 |
+| 禁止 SELECT * | MUST 明确指定需要的字段 | 网络开销、无法用覆盖索引 |
+
+---
 
 ## 提示词模板
 
@@ -11,266 +24,210 @@
 ```
 请帮我设计数据库表结构：
 - 业务场景：[描述业务]
-- 主要实体：[列出实体]
-- 关系类型：[一对一/一对多/多对多]
+- 主要实体：[列出实体及关系]
 - 数据量预估：[预估数据量]
-- 性能要求：[读写比例/响应时间]
-
-请包含：
-1. 建表语句
-2. 索引设计
-3. 字段注释
-4. 分表策略（如需要）
+- 查询模式：[主要查询场景]
+- 性能要求：[QPS/响应时间]
 ```
 
 ### SQL 优化
 
 ```
-请帮我优化以下 SQL：
-[粘贴 SQL]
-
-执行计划：
-[粘贴 EXPLAIN 结果]
-
-表结构：
-[粘贴表结构]
-
-请分析问题并提供优化方案。
+请帮我优化 SQL 查询：
+- 问题 SQL：[描述 SQL 功能]
+- 执行耗时：[当前耗时]
+- 表数据量：[各表数据量]
+- 现有索引：[列出索引]
+- 期望耗时：[目标耗时]
 ```
 
-## 核心代码示例
+### 架构设计
 
-### 建表规范
-
-```sql
--- 用户表
-CREATE TABLE `user` (
-    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `username` VARCHAR(50) NOT NULL COMMENT '用户名',
-    `email` VARCHAR(100) NOT NULL COMMENT '邮箱',
-    `password_hash` VARCHAR(255) NOT NULL COMMENT '密码哈希',
-    `phone` VARCHAR(20) DEFAULT NULL COMMENT '手机号',
-    `avatar` VARCHAR(255) DEFAULT NULL COMMENT '头像URL',
-    `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态: 0-禁用, 1-正常',
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    `deleted_at` DATETIME DEFAULT NULL COMMENT '删除时间',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_username` (`username`),
-    UNIQUE KEY `uk_email` (`email`),
-    KEY `idx_phone` (`phone`),
-    KEY `idx_status_created` (`status`, `created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
-
--- 订单表
-CREATE TABLE `order` (
-    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `order_no` VARCHAR(32) NOT NULL COMMENT '订单号',
-    `user_id` BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
-    `total_amount` DECIMAL(10,2) NOT NULL COMMENT '订单总金额',
-    `pay_amount` DECIMAL(10,2) NOT NULL COMMENT '实付金额',
-    `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态: 0-待支付, 1-已支付, 2-已发货, 3-已完成, 4-已取消',
-    `pay_time` DATETIME DEFAULT NULL COMMENT '支付时间',
-    `ship_time` DATETIME DEFAULT NULL COMMENT '发货时间',
-    `receive_time` DATETIME DEFAULT NULL COMMENT '收货时间',
-    `remark` VARCHAR(500) DEFAULT NULL COMMENT '备注',
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_order_no` (`order_no`),
-    KEY `idx_user_id` (`user_id`),
-    KEY `idx_status_created` (`status`, `created_at`),
-    KEY `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单表';
-
--- 订单明细表
-CREATE TABLE `order_item` (
-    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `order_id` BIGINT UNSIGNED NOT NULL COMMENT '订单ID',
-    `product_id` BIGINT UNSIGNED NOT NULL COMMENT '商品ID',
-    `product_name` VARCHAR(200) NOT NULL COMMENT '商品名称',
-    `product_image` VARCHAR(255) DEFAULT NULL COMMENT '商品图片',
-    `price` DECIMAL(10,2) NOT NULL COMMENT '商品单价',
-    `quantity` INT UNSIGNED NOT NULL COMMENT '数量',
-    `total_price` DECIMAL(10,2) NOT NULL COMMENT '小计金额',
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    PRIMARY KEY (`id`),
-    KEY `idx_order_id` (`order_id`),
-    KEY `idx_product_id` (`product_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单明细表';
+```
+请帮我设计 MySQL 架构：
+- 业务规模：[QPS/数据量]
+- 读写比例：[读多写少/写多读少]
+- 可用性要求：[99.9%/99.99%]
+- 一致性要求：[强一致/最终一致]
 ```
 
-### 索引设计原则
+---
 
-```sql
--- 1. 联合索引最左前缀原则
--- 索引 (a, b, c) 可以支持: a / a,b / a,b,c 查询
-CREATE INDEX idx_abc ON table_name (a, b, c);
+## 决策指南
 
--- ✅ 可以使用索引
-SELECT * FROM table_name WHERE a = 1;
-SELECT * FROM table_name WHERE a = 1 AND b = 2;
-SELECT * FROM table_name WHERE a = 1 AND b = 2 AND c = 3;
+### 数据类型选择
 
--- ❌ 无法使用索引
-SELECT * FROM table_name WHERE b = 2;
-SELECT * FROM table_name WHERE c = 3;
-SELECT * FROM table_name WHERE b = 2 AND c = 3;
-
--- 2. 覆盖索引 - 避免回表
-CREATE INDEX idx_user_status_name ON user (status, name);
-
--- ✅ 覆盖索引，不需要回表
-SELECT status, name FROM user WHERE status = 1;
-
--- ❌ 需要回表查询其他字段
-SELECT * FROM user WHERE status = 1;
-
--- 3. 索引下推 (ICP)
--- 可以在索引遍历过程中对索引包含的字段先做判断
-CREATE INDEX idx_name_age ON user (name, age);
-
--- age > 20 会在索引层过滤
-SELECT * FROM user WHERE name LIKE '张%' AND age > 20;
-
--- 4. 前缀索引 - 对长字符串建立索引
-CREATE INDEX idx_email_prefix ON user (email(10));
+```
+存储什么数据？
+├─ 整数 → TINYINT/SMALLINT/INT/BIGINT（按范围选最小）
+├─ 小数
+│   ├─ 精确计算（金额）→ DECIMAL
+│   └─ 科学计算 → DOUBLE
+├─ 字符串
+│   ├─ 固定长度 → CHAR
+│   ├─ 可变长度 → VARCHAR（<5000字符）
+│   └─ 大文本 → TEXT（避免使用）
+├─ 时间
+│   ├─ 日期 → DATE
+│   ├─ 时间戳 → DATETIME（需要时区用 TIMESTAMP）
+│   └─ 只需年月 → VARCHAR(7) 如 '2024-01'
+└─ 布尔 → TINYINT(1)
 ```
 
-### SQL 优化技巧
+### 索引策略选择
 
-```sql
--- 1. 避免 SELECT *
--- ❌ 差
-SELECT * FROM user WHERE id = 1;
--- ✅ 好
-SELECT id, username, email FROM user WHERE id = 1;
-
--- 2. 避免在 WHERE 子句中对字段进行函数操作
--- ❌ 差 - 无法使用索引
-SELECT * FROM order WHERE YEAR(created_at) = 2024;
--- ✅ 好 - 可以使用索引
-SELECT * FROM order WHERE created_at >= '2024-01-01' AND created_at < '2025-01-01';
-
--- 3. 使用 LIMIT 分页优化
--- ❌ 差 - 深度分页性能差
-SELECT * FROM order ORDER BY id LIMIT 1000000, 10;
--- ✅ 好 - 使用游标分页
-SELECT * FROM order WHERE id > 1000000 ORDER BY id LIMIT 10;
-
--- 4. 批量插入
--- ❌ 差 - 多次网络往返
-INSERT INTO user (name, email) VALUES ('user1', 'user1@example.com');
-INSERT INTO user (name, email) VALUES ('user2', 'user2@example.com');
--- ✅ 好 - 批量插入
-INSERT INTO user (name, email) VALUES
-    ('user1', 'user1@example.com'),
-    ('user2', 'user2@example.com'),
-    ('user3', 'user3@example.com');
-
--- 5. 避免使用 OR，改用 IN 或 UNION
--- ❌ 可能导致全表扫描
-SELECT * FROM user WHERE status = 0 OR status = 1;
--- ✅ 使用 IN
-SELECT * FROM user WHERE status IN (0, 1);
-
--- 6. EXISTS 代替 IN (子查询数据量大时)
--- ❌ 子查询结果集大时性能差
-SELECT * FROM user WHERE id IN (SELECT user_id FROM order);
--- ✅ 使用 EXISTS
-SELECT * FROM user u WHERE EXISTS (SELECT 1 FROM order o WHERE o.user_id = u.id);
-
--- 7. 使用 EXPLAIN 分析查询
-EXPLAIN SELECT * FROM order WHERE user_id = 1 AND status = 1;
+```
+查询模式？
+├─ 等值查询 → B+Tree 索引
+├─ 范围查询 → B+Tree 索引（范围列放最后）
+├─ 前缀匹配 → B+Tree 索引（LIKE 'abc%'）
+├─ 全文搜索 → 全文索引或 ES
+├─ 多列查询 → 组合索引（区分度高的列在前）
+└─ JSON 字段 → 虚拟列 + 索引
 ```
 
-### 分页查询优化
+### 分库分表策略
 
-```sql
--- 方案1: 游标分页 (推荐)
-SELECT * FROM order
-WHERE id > #{lastId}
-ORDER BY id
-LIMIT 20;
-
--- 方案2: 延迟关联
-SELECT o.* FROM order o
-INNER JOIN (
-    SELECT id FROM order
-    ORDER BY created_at DESC
-    LIMIT 1000000, 20
-) t ON o.id = t.id;
-
--- 方案3: 覆盖索引 + 子查询
-SELECT * FROM order
-WHERE id >= (
-    SELECT id FROM order
-    ORDER BY id
-    LIMIT 1000000, 1
-)
-LIMIT 20;
+```
+数据量级？
+├─ <1000万 → 单表即可
+├─ 1000万-1亿 → 分表（按时间/ID取模）
+├─ >1亿 → 分库分表
+└─ 跨地域 → 异地多活架构
 ```
 
-### 事务与锁
+---
 
-```sql
--- 事务隔离级别
-SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+## 正反对比示例
 
--- 行锁 - FOR UPDATE
-START TRANSACTION;
-SELECT * FROM account WHERE id = 1 FOR UPDATE;
-UPDATE account SET balance = balance - 100 WHERE id = 1;
-COMMIT;
+### 表设计
 
--- 乐观锁 - 版本号
-UPDATE product
-SET stock = stock - 1, version = version + 1
-WHERE id = 1 AND version = #{version};
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 使用 INT 作主键 | 使用 BIGINT UNSIGNED | INT 上限 21 亿，不够用 |
+| 字段允许 NULL | 定义 NOT NULL DEFAULT | NULL 处理复杂、占用空间 |
+| 使用 TEXT 存储短文本 | VARCHAR 存储（<5000字符） | TEXT 不能有默认值、性能差 |
+| 使用 FLOAT 存金额 | 使用 DECIMAL(10,2) | 浮点数精度问题 |
 
--- 间隙锁防止幻读 (RR 隔离级别)
-SELECT * FROM order WHERE user_id = 1 FOR UPDATE;
--- 会锁住 user_id = 1 的所有记录及其间隙
+### 索引设计
 
--- 死锁检测
-SHOW ENGINE INNODB STATUS;
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 单列索引过多 | 设计组合索引 | 减少索引数量、提高效率 |
+| 低区分度字段建索引（如性别） | 组合高区分度字段 | 索引效果差 |
+| 索引列使用函数 | 直接对字段条件查询 | 索引失效 |
+| 组合索引顺序随意 | 区分度高的列放前面 | 最左匹配原则 |
+
+### SQL 编写
+
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| SELECT * FROM ... | SELECT 具体字段 | 网络开销、无法覆盖索引 |
+| WHERE YEAR(create_time)=2024 | WHERE create_time >= '2024-01-01' | 函数导致索引失效 |
+| OR 连接不同字段 | UNION ALL 分开查询 | OR 可能导致索引失效 |
+| IN 子查询 | 改用 JOIN | IN 子查询性能差 |
+
+### 事务处理
+
+| ❌ 错误做法 | ✅ 正确做法 | 原因 |
+|------------|------------|------|
+| 大事务长时间持有锁 | 拆分小事务 | 锁等待、死锁风险 |
+| 事务中包含 RPC 调用 | RPC 移到事务外 | 事务超时、锁持有时间长 |
+| 不处理死锁 | 捕获死锁异常并重试 | 死锁是正常现象 |
+| 使用 READ UNCOMMITTED | 使用 READ COMMITTED 或更高 | 脏读风险 |
+
+---
+
+## 验证清单 (Validation Checklist)
+
+### 设计阶段
+
+- [ ] 主键是否使用 BIGINT UNSIGNED AUTO_INCREMENT？
+- [ ] 字段是否都定义了 NOT NULL 和默认值？
+- [ ] 是否有适当的索引覆盖查询场景？
+- [ ] 是否有 created_at 和 updated_at 字段？
+- [ ] 字符集是否统一使用 utf8mb4？
+
+### 开发阶段
+
+- [ ] 是否避免了 SELECT *？
+- [ ] WHERE 条件是否能命中索引？
+- [ ] 是否避免了索引列上使用函数？
+- [ ] 分页是否使用了游标分页（大偏移量时）？
+- [ ] 批量操作是否控制了单次数量？
+
+### 上线阶段
+
+- [ ] 是否在测试环境验证了 SQL 性能？
+- [ ] 是否检查了 EXPLAIN 执行计划？
+- [ ] DDL 是否使用了 Online DDL？
+- [ ] 是否配置了慢查询日志？
+
+---
+
+## 护栏约束 (Guardrails)
+
+**允许 (✅)**：
+- 使用 InnoDB 存储引擎
+- 使用 utf8mb4 字符集
+- 使用参数化查询防止 SQL 注入
+- 使用连接池管理连接
+
+**禁止 (❌)**：
+- NEVER 使用 SELECT *
+- NEVER 在索引列上使用函数或运算
+- NEVER 使用 LIKE '%xxx' 前缀模糊查询
+- NEVER 单次查询超过 1000 条不分页
+- NEVER 在事务中进行 RPC 调用
+
+**需澄清 (⚠️)**：
+- 隔离级别：[NEEDS CLARIFICATION: READ COMMITTED/REPEATABLE READ?]
+- 分表策略：[NEEDS CLARIFICATION: 按时间/按ID?]
+- 读写分离：[NEEDS CLARIFICATION: 是否需要?]
+
+---
+
+## 常见问题诊断
+
+| 症状 | 可能原因 | 解决方案 |
+|------|----------|----------|
+| 查询慢 | 缺少索引、索引失效 | EXPLAIN 分析、添加索引 |
+| 锁等待超时 | 大事务、死锁 | 拆分事务、优化 SQL |
+| 连接数过多 | 连接泄漏、未使用连接池 | 使用连接池、设置超时 |
+| CPU 高 | 复杂查询、排序 | 优化 SQL、添加索引 |
+| 磁盘 IO 高 | 全表扫描、大事务 | 添加索引、减小事务 |
+| 主从延迟 | 大事务、大批量写入 | 拆分事务、错峰写入 |
+
+---
+
+## 索引设计原则
+
+```
+设计索引时，MUST 遵循：
+1. 最左匹配：组合索引按最左前缀匹配
+2. 区分度优先：高区分度字段放前面
+3. 覆盖索引：尽量让查询只访问索引
+4. 范围列最后：范围查询列放组合索引最后
+5. 控制数量：单表索引不超过 5 个
 ```
 
-### 分库分表
+---
 
-```sql
--- 按用户ID分表 (水平分表)
--- user_0, user_1, user_2, user_3 (4张表)
--- 路由规则: table_index = user_id % 4
+## 输出格式要求
 
--- 分表后的查询需要带上分片键
-SELECT * FROM user_{user_id % 4} WHERE user_id = 12345;
+当生成数据库设计时，MUST 遵循以下结构：
 
--- 订单表按时间分表
--- order_202401, order_202402, order_202403...
--- 需要知道时间范围才能定位表
-SELECT * FROM order_202403 WHERE created_at >= '2024-03-01' AND created_at < '2024-04-01';
 ```
+## 设计说明
+- 业务场景：[场景描述]
+- 数据量预估：[预估数据量]
+- 主要查询：[核心查询场景]
 
-## 命名规范
+## 表结构
+- 表名：[表名及说明]
+- 字段列表：[字段、类型、说明]
+- 索引设计：[索引名、字段、用途]
 
-| 类型 | 规范 | 示例 |
-|------|------|------|
-| 表名 | 小写下划线 | user_order |
-| 字段名 | 小写下划线 | created_at |
-| 主键 | id | id |
-| 外键 | 表名_id | user_id |
-| 唯一索引 | uk_字段 | uk_email |
-| 普通索引 | idx_字段 | idx_status |
-| 联合索引 | idx_字段1_字段2 | idx_status_created |
-
-## 最佳实践清单
-
-- [ ] 使用 InnoDB 引擎
-- [ ] 主键使用自增 BIGINT
-- [ ] 字符集使用 utf8mb4
-- [ ] 字段添加 NOT NULL 和默认值
-- [ ] 合理设计索引，避免冗余
-- [ ] 大表考虑分库分表
-- [ ] 使用 EXPLAIN 分析慢查询
-- [ ] 避免深度分页，使用游标
+## 注意事项
+- [设计约束和边界情况]
+```
