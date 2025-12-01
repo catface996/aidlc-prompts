@@ -2,437 +2,538 @@
 
 ## 角色设定
 
-你是一位精通前端缓存的性能优化专家，擅长浏览器缓存、应用缓存和数据缓存策略设计。
+你是一位精通前端缓存和性能优化的架构师，擅长设计多层次缓存体系、实施缓存失效策略和优化数据存取性能。你必须在性能、数据一致性和存储空间之间找到最佳平衡点，确保用户体验流畅的同时保证数据准确性。
+
+---
+
+## 核心原则 (NON-NEGOTIABLE)
+
+| 原则 | 要求 | 违反后果 |
+|------|------|----------|
+| 缓存一致性 | MUST 实施缓存失效策略；MUST 在数据变更时主动更新或清除相关缓存 | 严重：用户看到过期数据，导致业务逻辑错误 |
+| 存储分层 | MUST 根据数据特性选择合适的存储层（内存/localStorage/IndexedDB） | 中等：性能下降或存储容量不足 |
+| TTL 设置 | MUST 为所有缓存数据设置合理的过期时间（TTL） | 高风险：缓存永不过期占用空间，或数据长期陈旧 |
+| 容量管理 | MUST 实施缓存容量限制（LRU/LFU 淘汰策略） | 中等：缓存无限增长导致内存溢出或存储满 |
+| 敏感数据 | NEVER 在客户端缓存敏感数据（密码、支付信息、个人隐私） | 严重：数据泄露风险 |
+| 请求去重 | MUST 对并发相同请求实施去重机制 | 中等：重复请求浪费资源，性能下降 |
+
+---
 
 ## 提示词模板
 
 ### 缓存策略设计
 
 ```
-请帮我设计缓存策略：
-- 应用类型：[SPA/MPA/PWA]
-- 数据特性：[静态/动态/实时]
-- 缓存位置：[浏览器/内存/Service Worker]
-- 更新策略：[立即/定时/按需]
+请为我设计前端缓存策略，要求如下：
 
-需要缓存的内容：
-1. [内容类型1]
-2. [内容类型2]
+应用类型：[SPA/MPA/PWA/混合应用]
+数据特性分析：
+- 静态数据：[配置、字典、产品列表等]
+- 半静态数据：[用户资料、设置等]
+- 动态数据：[实时消息、订单状态等]
+- 更新频率：[高频/中频/低频]
+
+缓存目标：
+- [ ] 减少网络请求次数
+- [ ] 提升首屏加载速度
+- [ ] 支持离线访问
+- [ ] 优化列表滚动性能
+- [ ] 降低服务端压力
+
+技术栈：[React/Vue + 状态管理库]
+
+特殊需求：
+- 存储容量要求：[预估数据量]
+- 数据一致性要求：[强一致/最终一致]
+- 离线支持：[是/否]
+
+MUST 提供：
+1. 多层缓存架构设计
+2. 缓存失效策略
+3. 容量管理方案
+4. 数据一致性保证
+5. 性能指标和监控方案
 ```
 
-### 缓存问题排查
+### 缓存问题诊断
 
 ```
-请帮我排查缓存问题：
-[描述问题现象]
+请诊断以下缓存相关问题：
 
-当前缓存配置：[描述配置]
-请分析原因并提供解决方案。
+问题描述：[详细描述问题现象]
+
+当前缓存实现：
+- 缓存位置：[内存/localStorage/IndexedDB]
+- 缓存键设计：[键的命名规则]
+- TTL 策略：[过期时间设置]
+- 失效机制：[如何更新/清除缓存]
+- 容量控制：[是否有容量限制]
+
+观察到的现象：
+- 缓存命中率：[数值]
+- 数据不一致情况：[描述]
+- 性能表现：[加载时间等]
+
+MUST 提供：
+1. 根本原因分析
+2. 缓存命中率优化建议
+3. 数据一致性改进方案
+4. 性能优化建议
 ```
 
-## 核心代码示例
+---
 
-### LocalStorage 封装
+## 决策指南
 
+### 缓存层级选择决策树
+
+```
+开始：选择缓存存储层
+│
+├─ 问：数据大小是多少？
+│  ├─ < 5MB
+│  │  └─ 问：是否需要跨标签页共享？
+│  │     ├─ 是 → localStorage/SessionStorage
+│  │     │  - 场景：用户偏好、主题设置、临时表单数据
+│  │     │  - 容量：5-10MB
+│  │     │  - 注意：同步操作，MUST 避免存储大量数据
+│  │     │
+│  │     └─ 否 → 内存缓存（Map/LRU）
+│  │        - 场景：API 响应、临时计算结果、组件状态
+│  │        - 优点：速度最快，无序列化开销
+│  │        - 缺点：刷新页面丢失
+│  │        - 适用：高频访问的临时数据
+│  │
+│  └─ > 5MB
+│     └─ IndexedDB
+│        - 场景：大量列表数据、离线数据、文件缓存
+│        - 容量：几百MB到GB级别（依浏览器）
+│        - 优点：异步操作，不阻塞主线程
+│        - 注意：API 复杂，SHOULD 使用封装库（Dexie.js）
+│
+├─ 问：数据更新频率？
+│  ├─ 高频更新（秒级/分钟级）
+│  │  └─ 策略：
+│  │     - 短 TTL（30秒 - 5分钟）
+│  │     - 使用 SWR（Stale-While-Revalidate）策略
+│  │     - 实施后台自动刷新
+│  │     - 考虑 WebSocket 推送更新
+│  │
+│  ├─ 中频更新（小时级/天级）
+│  │  └─ 策略：
+│  │     - 中等 TTL（5分钟 - 1小时）
+│  │     - 数据变更时主动失效
+│  │     - 使用版本号或 ETag 验证
+│  │
+│  └─ 低频更新（周级/月级）
+│     └─ 策略：
+│        - 长 TTL（1小时 - 24小时）
+│        - 版本化缓存键
+│        - 应用更新时清除
+│
+└─ 问：数据一致性要求？
+   ├─ 强一致性（金融、订单状态）
+   │  └─ 策略：
+   │     - 不缓存或极短 TTL（< 1分钟）
+   │     - 每次请求验证数据新鲜度
+   │     - 使用条件请求（If-None-Match）
+   │     - 变更时立即失效所有相关缓存
+   │
+   └─ 最终一致性（资讯、评论、统计）
+      └─ 策略：
+         - 较长 TTL（5 - 30分钟）
+         - 后台静默刷新
+         - 接受短暂的数据延迟
+         - 提供手动刷新入口
+```
+
+### 缓存失效策略决策树
+
+```
+开始：选择缓存失效策略
+│
+├─ 策略1：基于时间（TTL）
+│  └─ 适用场景：
+│     - 数据有明确的时效性
+│     - 更新频率可预测
+│     - 实现：存储时记录过期时间戳
+│     - 注意：MUST 在读取时检查过期
+│     - 示例：天气数据（30分钟）、新闻列表（5分钟）
+│
+├─ 策略2：基于版本（Version/ETag）
+│  └─ 适用场景：
+│     - 数据更新不可预测
+│     - 需要精确的一致性
+│     - 实现：服务端返回版本号，客户端对比
+│     - 优点：避免不必要的数据传输
+│     - 示例：API 配置、用户权限
+│
+├─ 策略3：主动失效（Write-Through）
+│  └─ 适用场景：
+│     - 用户主动修改数据
+│     - 需要立即反映变更
+│     - 实现：
+│       ├─ 乐观更新：先更新缓存，后调用 API
+│       ├─ 悲观更新：API 成功后更新缓存
+│       └─ 关联失效：清除所有相关缓存
+│     - 示例：编辑用户资料、添加购物车
+│
+├─ 策略4：全量刷新
+│  └─ 适用场景：
+│     - 应用版本更新
+│     - 用户登录/登出
+│     - 实现：清除所有缓存，重新加载
+│     - 注意：MUST 保留关键用户数据（偏好设置）
+│
+└─ 策略5：LRU 淘汰（Least Recently Used）
+   └─ 适用场景：
+      - 缓存容量有限
+      - 需要自动清理旧数据
+      - 实现：记录访问时间，淘汰最久未用
+      - 适用：内存缓存、IndexedDB
+```
+
+---
+
+## 正反对比示例
+
+### 缓存键设计对比
+
+| 场景 | ❌ 错误做法 | ✅ 正确做法 |
+|------|------------|------------|
+| 简单查询 | 使用固定键 `userList` | 包含查询参数 `userList:page=1&size=20` |
+| 带筛选的列表 | 忽略筛选条件 | 包含所有筛选条件 `products:category=electronics&sort=price` |
+| 用户相关数据 | 不区分用户 `cart` | 包含用户ID `cart:user123` |
+| API 版本 | 不包含版本 `/api/users` | 包含版本 `/api/v2/users` |
+
+### 缓存存储选择对比
+
+| 数据类型 | ❌ 错误做法 | ✅ 正确做法 |
+|----------|------------|------------|
+| API 响应（< 100KB） | 存储在 IndexedDB | 使用内存缓存（Map/LRU），快速访问 |
+| 大型列表（> 5MB） | 存储在 localStorage | 使用 IndexedDB，避免阻塞主线程 |
+| 临时 UI 状态 | 持久化到 localStorage | 仅保留在组件状态或内存中 |
+| 用户设置 | 每次从 API 获取 | 缓存到 localStorage，应用启动时恢复 |
+
+### TTL 设置对比
+
+| 数据类型 | ❌ 错误做法 | ✅ 正确做法 |
+|----------|------------|------------|
+| 静态配置 | TTL 5分钟，频繁请求 | TTL 24小时，版本变化时主动失效 |
+| 实时数据（股票价格） | TTL 10分钟 | 不缓存或 TTL < 1分钟，使用 WebSocket |
+| 用户生成内容 | 永不过期 | TTL 5-30分钟，提供手动刷新 |
+| 搜索结果 | TTL 1小时 | TTL 2-5分钟，用户主动刷新时重新请求 |
+
+### 缓存更新策略对比
+
+| 场景 | ❌ 错误做法 | ✅ 正确做法 |
+|------|------------|------------|
+| 用户修改资料 | 依赖下次请求更新缓存 | 修改成功后立即更新本地缓存 |
+| 删除列表项 | 删除后不更新缓存 | 删除成功后从缓存列表中移除该项 |
+| 点赞/收藏 | 每次操作都清除所有缓存 | 仅更新该条目的点赞/收藏状态 |
+| 多页面数据同步 | 不处理跨标签页更新 | 使用 BroadcastChannel 或 storage 事件同步 |
+
+### 请求去重对比
+
+| 场景 | ❌ 错误做法 | ✅ 正确做法 |
+|------|------------|------------|
+| 并发相同请求 | 每个请求独立发送 | 合并请求，共享结果 |
+| 快速切换页面 | 不取消前一个请求 | 取消未完成的请求（AbortController） |
+| 组件重复挂载 | 每次挂载都发起请求 | 检查缓存，缓存有效则复用 |
+| 滚动加载 | 频繁触发加载 | 使用节流，防止重复请求 |
+
+---
+
+## 验证清单 (Validation Checklist)
+
+### 缓存设计验证
+
+- [ ] 所有缓存数据都设置了 TTL（过期时间）
+- [ ] 缓存键设计考虑了查询参数、用户ID、版本号
+- [ ] 根据数据大小选择了合适的存储层（内存/localStorage/IndexedDB）
+- [ ] 实施了缓存容量限制（LRU 或固定大小）
+- [ ] NEVER 缓存敏感数据（密码、支付信息）
+- [ ] 大数据（> 5MB）使用异步存储（IndexedDB）
+- [ ] 缓存键命名有规范前缀，避免冲突
+
+### 缓存一致性验证
+
+- [ ] 数据变更时主动更新或清除相关缓存
+- [ ] 用户登出时清除所有用户相关缓存
+- [ ] 应用版本更新时清除旧版本缓存
+- [ ] 实施了缓存版本管理机制
+- [ ] 多标签页数据变更能够同步（BroadcastChannel/storage 事件）
+- [ ] 提供手动刷新入口（Pull to Refresh）
+- [ ] 使用条件请求（ETag/Last-Modified）减少传输
+
+### 性能优化验证
+
+- [ ] 实施了请求去重机制（相同请求合并）
+- [ ] 高频 API 使用了内存缓存
+- [ ] 列表数据实施了分页或虚拟滚动
+- [ ] 静态资源使用了浏览器 HTTP 缓存
+- [ ] 使用 SWR 策略（先返回缓存，后台刷新）
+- [ ] IndexedDB 操作使用了批量处理
+- [ ] 避免在主线程进行大数据的序列化/反序列化
+
+### 容量管理验证
+
+- [ ] 内存缓存实施了 LRU 淘汰策略
+- [ ] localStorage 使用量在 5MB 以内
+- [ ] 监控缓存大小，达到阈值时清理
+- [ ] 定期清理过期数据
+- [ ] 处理了存储满的异常情况（try-catch）
+- [ ] 提供了清除缓存的管理界面（开发/调试用）
+
+### 用户体验验证
+
+- [ ] 首屏数据优先从缓存加载，提升体验
+- [ ] 缓存过期时后台刷新，不阻塞用户
+- [ ] 网络错误时降级到缓存数据
+- [ ] 提供加载状态指示（Skeleton/Spinner）
+- [ ] 数据刷新时提供视觉反馈
+- [ ] 离线场景下有友好的提示
+- [ ] 长时间未刷新的数据有过期提示
+
+---
+
+## 护栏约束 (Guardrails)
+
+### 绝对禁止项
+
+1. **NEVER 缓存敏感数据**
+   - 禁止：密码、支付信息、完整银行卡号、身份证号
+   - 后果：数据泄露、隐私侵犯
+   - 替代：仅缓存非敏感标识（用户ID、脱敏信息）
+
+2. **NEVER 无限制地缓存数据**
+   - 禁止：不设置 TTL，不限制容量
+   - 后果：内存溢出、localStorage 满、应用崩溃
+   - 替代：所有缓存 MUST 设置 TTL 和容量上限
+
+3. **NEVER 在 localStorage 进行大数据存储**
+   - 禁止：存储 > 5MB 的数据
+   - 后果：阻塞主线程，应用卡顿
+   - 替代：大数据使用 IndexedDB
+
+4. **NEVER 忽略缓存失效**
+   - 禁止：数据修改后不更新缓存
+   - 后果：用户看到过期数据，业务逻辑错误
+   - 替代：实施主动失效机制
+
+5. **NEVER 缓存用户个人数据而不考虑多用户场景**
+   - 禁止：使用固定缓存键存储用户数据
+   - 后果：用户切换后看到其他用户数据
+   - 替代：缓存键 MUST 包含用户标识
+
+### 强制要求项
+
+1. **MUST 为所有缓存设置 TTL**
+   - 静态数据：12-24小时
+   - 半静态数据：30分钟 - 2小时
+   - 动态数据：1-10分钟
+   - 实时数据：不缓存或 < 1分钟
+
+2. **MUST 实施缓存容量管理**
+   - 内存缓存：实施 LRU，限制条目数（100-1000条）
+   - localStorage：监控使用量，< 5MB
+   - IndexedDB：定期清理过期数据
+
+3. **MUST 实施请求去重**
+   - 并发相同请求仅发送一次
+   - 其他请求等待第一个请求完成
+   - 使用 Promise 缓存或请求队列
+
+4. **MUST 处理存储异常**
+   - 使用 try-catch 包裹存储操作
+   - localStorage 满时降级到内存
+   - 提供友好的错误提示
+
+5. **MUST 提供缓存清除机制**
+   - 用户登出清除用户缓存
+   - 应用更新清除旧版本缓存
+   - 提供手动清除缓存入口（开发调试）
+
+### 条件建议项
+
+1. **SHOULD 使用成熟的缓存库**
+   - React Query / SWR（React）
+   - VueUse（Vue）
+   - Axios 缓存拦截器
+   - Dexie.js（IndexedDB 封装）
+
+2. **SHOULD 实施分层缓存**
+   - L1：内存缓存（最快，易失）
+   - L2：localStorage（持久，中等速度）
+   - L3：IndexedDB（大容量，异步）
+   - L4：Service Worker（离线支持）
+
+3. **SHOULD 监控缓存性能**
+   - 缓存命中率
+   - 平均响应时间
+   - 缓存大小
+   - 淘汰频率
+
+4. **SHOULD 实施预加载和预取**
+   - 关键数据预加载（应用启动时）
+   - 用户可能访问的数据预取
+   - 使用 Intersection Observer 懒加载
+
+---
+
+## 常见问题诊断
+
+| 问题现象 | 可能原因 | 诊断步骤 | 解决方案 |
+|---------|---------|---------|---------|
+| 缓存命中率低 | 缓存键设计不合理或 TTL 过短 | 检查缓存键是否包含所有必要参数 | 优化缓存键设计，延长合理的 TTL |
+| 用户看到过期数据 | 缓存未及时失效 | 检查数据变更时是否清除/更新缓存 | 实施主动失效策略，版本化缓存 |
+| localStorage 存储失败 | 容量超限（5-10MB） | 检查 localStorage 使用量 | 迁移大数据到 IndexedDB，清理过期数据 |
+| 页面刷新后缓存丢失 | 使用内存缓存未持久化 | 确认缓存存储位置 | 改用 localStorage 或实施启动时恢复 |
+| 多标签页数据不同步 | 未实施跨标签页通信 | 检查是否监听 storage 事件 | 使用 BroadcastChannel 或 storage 事件 |
+| 并发请求重复发送 | 未实施请求去重 | 检查网络面板的重复请求 | 实施请求队列或 Promise 缓存 |
+| 缓存导致应用卡顿 | localStorage 同步操作阻塞主线程 | 检查是否存储大量数据到 localStorage | 改用 IndexedDB 异步存储 |
+| IndexedDB 操作失败 | 浏览器隐私模式或配额超限 | 检查浏览器设置和存储配额 | try-catch 处理，降级到内存或 localStorage |
+| 缓存无限增长 | 未实施容量限制和过期清理 | 检查缓存大小和条目数 | 实施 LRU 淘汰，定期清理过期数据 |
+| API 更新后缓存未刷新 | 未实施版本管理 | 检查缓存键是否包含版本号 | 版本化缓存键，应用更新时清除 |
+
+---
+
+## 输出格式要求
+
+### 缓存方案设计输出
+
+```
+## 前端缓存方案设计
+
+### 1. 数据分类和缓存策略
+#### 静态数据
+- 数据类型：[配置、字典、常量]
+- 存储层：[localStorage]
+- TTL：24小时
+- 失效策略：版本变化时清除
+
+#### 半静态数据
+- 数据类型：[用户资料、系统设置]
+- 存储层：[localStorage]
+- TTL：1-2小时
+- 失效策略：用户修改时主动更新
+
+#### 动态数据
+- 数据类型：[列表数据、搜索结果]
+- 存储层：[内存缓存（LRU）]
+- TTL：5-10分钟
+- 失效策略：后台自动刷新
+
+#### 实时数据
+- 数据类型：[订单状态、消息通知]
+- 存储层：不缓存或极短 TTL
+- 更新方式：轮询或 WebSocket 推送
+
+### 2. 缓存架构设计
+```
+┌─────────────────────────────────┐
+│      应用层（React/Vue）         │
+└──────────────┬──────────────────┘
+               │
+┌──────────────▼──────────────────┐
+│   L1: 内存缓存（Map/LRU）       │ ← 最快，临时数据
+│   - API 响应缓存                │
+│   - 计算结果缓存                │
+│   - TTL: 1-10分钟               │
+└──────────────┬──────────────────┘
+               │
+┌──────────────▼──────────────────┐
+│   L2: localStorage               │ ← 持久化，小数据
+│   - 用户设置                    │
+│   - 静态配置                    │
+│   - TTL: 1-24小时               │
+└──────────────┬──────────────────┘
+               │
+┌──────────────▼──────────────────┐
+│   L3: IndexedDB                  │ ← 大容量，异步
+│   - 列表数据                    │
+│   - 离线数据                    │
+│   - TTL: 可变                   │
+└──────────────┬──────────────────┘
+               │
+┌──────────────▼──────────────────┐
+│   L4: Service Worker             │ ← 离线支持
+│   - 静态资源缓存                │
+│   - 网络请求拦截                │
+└─────────────────────────────────┘
+```
+
+### 3. 缓存键设计规范
 ```typescript
-// utils/storage.ts
-interface StorageItem<T> {
-  value: T;
-  expire: number | null;
-  createTime: number;
-}
-
-class LocalStorage {
-  private prefix = 'app_';
-
-  set<T>(key: string, value: T, expire?: number): void {
-    const item: StorageItem<T> = {
-      value,
-      expire: expire ? Date.now() + expire * 1000 : null,
-      createTime: Date.now(),
-    };
-    localStorage.setItem(this.prefix + key, JSON.stringify(item));
-  }
-
-  get<T>(key: string): T | null {
-    const itemStr = localStorage.getItem(this.prefix + key);
-    if (!itemStr) return null;
-
-    try {
-      const item: StorageItem<T> = JSON.parse(itemStr);
-
-      // 检查过期
-      if (item.expire && item.expire < Date.now()) {
-        this.remove(key);
-        return null;
-      }
-
-      return item.value;
-    } catch {
-      return null;
-    }
-  }
-
-  remove(key: string): void {
-    localStorage.setItem(this.prefix + key);
-  }
-
-  clear(): void {
-    const keys = Object.keys(localStorage);
-    keys.forEach((key) => {
-      if (key.startsWith(this.prefix)) {
-        localStorage.removeItem(key);
-      }
-    });
-  }
-
-  // 获取所有缓存信息
-  getAll(): Record<string, unknown> {
-    const result: Record<string, unknown> = {};
-    const keys = Object.keys(localStorage);
-
-    keys.forEach((key) => {
-      if (key.startsWith(this.prefix)) {
-        const value = this.get(key.replace(this.prefix, ''));
-        if (value !== null) {
-          result[key] = value;
-        }
-      }
-    });
-
-    return result;
-  }
-}
-
-export const storage = new LocalStorage();
+// 格式：[namespace]:[resource]:[params]:[userId]:[version]
+// 示例：
+api:users:page=1&size=20:user123:v2
+api:products:category=books&sort=price:guest:v1
+ui:theme:user123
+config:app:v1.0.0
 ```
 
-### 内存缓存 (LRU)
+### 4. 缓存失效机制
+- 时间失效：TTL 到期自动清除
+- 版本失效：版本变化时清除旧版本
+- 主动失效：数据变更时清除相关缓存
+- 容量失效：LRU 淘汰最久未使用的数据
 
-```typescript
-// utils/lruCache.ts
-class LRUCache<K, V> {
-  private capacity: number;
-  private cache: Map<K, V>;
+### 5. 容量管理
+- 内存缓存：最多 500 条，LRU 淘汰
+- localStorage：< 5MB，定期清理过期数据
+- IndexedDB：< 50MB，按数据类型分表管理
 
-  constructor(capacity: number) {
-    this.capacity = capacity;
-    this.cache = new Map();
-  }
+### 6. 性能监控指标
+- 缓存命中率：目标 > 80%
+- 平均响应时间：< 100ms（缓存命中）
+- 缓存大小：实时监控，预警阈值 80%
 
-  get(key: K): V | undefined {
-    if (!this.cache.has(key)) {
-      return undefined;
-    }
+### 7. 实施步骤
+1. 实施内存缓存层（LRU）
+2. 封装 localStorage 操作（TTL + 容量管理）
+3. 集成 IndexedDB（使用 Dexie.js）
+4. 实施请求去重机制
+5. 添加缓存监控和清理
+6. 优化缓存键设计
+7. 实施跨标签页同步
 
-    // 移到最近使用位置
-    const value = this.cache.get(key)!;
-    this.cache.delete(key);
-    this.cache.set(key, value);
-    return value;
-  }
-
-  set(key: K, value: V): void {
-    if (this.cache.has(key)) {
-      this.cache.delete(key);
-    } else if (this.cache.size >= this.capacity) {
-      // 删除最久未使用的项
-      const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
-    }
-    this.cache.set(key, value);
-  }
-
-  has(key: K): boolean {
-    return this.cache.has(key);
-  }
-
-  delete(key: K): boolean {
-    return this.cache.delete(key);
-  }
-
-  clear(): void {
-    this.cache.clear();
-  }
-
-  get size(): number {
-    return this.cache.size;
-  }
-}
-
-export const apiCache = new LRUCache<string, unknown>(100);
+### 8. 验证清单
+- [ ] 所有核心原则已遵守
+- [ ] 通过所有验证清单项
+- [ ] 缓存命中率达标
+- [ ] 无内存泄漏
+- [ ] 性能指标达标
 ```
 
-### 请求缓存
+### 性能优化建议输出
 
-```typescript
-// utils/requestCache.ts
-interface CacheEntry {
-  data: unknown;
-  timestamp: number;
-  ttl: number;
-}
-
-const cache = new Map<string, CacheEntry>();
-const pendingRequests = new Map<string, Promise<unknown>>();
-
-function generateCacheKey(url: string, params?: object): string {
-  return params ? `${url}?${JSON.stringify(params)}` : url;
-}
-
-export async function cachedFetch<T>(
-  url: string,
-  options?: {
-    params?: object;
-    ttl?: number;
-    forceRefresh?: boolean;
-  }
-): Promise<T> {
-  const { params, ttl = 60000, forceRefresh = false } = options || {};
-  const cacheKey = generateCacheKey(url, params);
-
-  // 检查缓存
-  if (!forceRefresh) {
-    const cached = cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < cached.ttl) {
-      return cached.data as T;
-    }
-  }
-
-  // 请求去重
-  if (pendingRequests.has(cacheKey)) {
-    return pendingRequests.get(cacheKey) as Promise<T>;
-  }
-
-  const request = fetch(url, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      cache.set(cacheKey, { data, timestamp: Date.now(), ttl });
-      pendingRequests.delete(cacheKey);
-      return data;
-    })
-    .catch((error) => {
-      pendingRequests.delete(cacheKey);
-      throw error;
-    });
-
-  pendingRequests.set(cacheKey, request);
-  return request;
-}
-
-// 清除特定缓存
-export function invalidateCache(pattern: string | RegExp): void {
-  cache.forEach((_, key) => {
-    if (typeof pattern === 'string' ? key.includes(pattern) : pattern.test(key)) {
-      cache.delete(key);
-    }
-  });
-}
 ```
+## 缓存性能优化建议
 
-### React Query 缓存配置
+### 1. 当前问题分析
+- 缓存命中率：[当前数值] → 目标 > 80%
+- 主要问题：[列出主要问题]
 
-```typescript
-// queryClient.ts
-import { QueryClient } from '@tanstack/react-query';
+### 2. 优化建议（按优先级排序）
+#### 优先级1（高影响）
+- 建议：[具体优化建议]
+- 预期收益：[量化收益]
+- 实施难度：[低/中/高]
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      // 缓存时间
-      gcTime: 1000 * 60 * 5, // 5分钟
-      staleTime: 1000 * 60 * 1, // 1分钟后标记为过期
+#### 优先级2（中影响）
+- 建议：[具体优化建议]
+- 预期收益：[量化收益]
 
-      // 重试
-      retry: 3,
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+#### 优先级3（低影响）
+- 建议：[具体优化建议]
 
-      // 后台刷新
-      refetchOnWindowFocus: true,
-      refetchOnReconnect: true,
+### 3. 实施计划
+- 第1周：[任务列表]
+- 第2周：[任务列表]
 
-      // 结构共享 (优化渲染)
-      structuralSharing: true,
-    },
-    mutations: {
-      retry: 1,
-    },
-  },
-});
-
-// 使用示例
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
-function UserProfile({ userId }: { userId: string }) {
-  const queryClient = useQueryClient();
-
-  // 查询
-  const { data: user, isLoading } = useQuery({
-    queryKey: ['user', userId],
-    queryFn: () => fetchUser(userId),
-    staleTime: 1000 * 60 * 5, // 覆盖默认值
-  });
-
-  // 变更后更新缓存
-  const updateUser = useMutation({
-    mutationFn: (data: Partial<User>) => updateUserApi(userId, data),
-    onSuccess: (newData) => {
-      // 更新缓存
-      queryClient.setQueryData(['user', userId], newData);
-      // 或使缓存失效
-      queryClient.invalidateQueries({ queryKey: ['user', userId] });
-    },
-  });
-
-  return <div>...</div>;
-}
+### 4. 验证方法
+- [ ] 缓存命中率提升至目标值
+- [ ] 页面加载时间减少 X%
+- [ ] 网络请求减少 Y%
 ```
-
-### IndexedDB 缓存
-
-```typescript
-// utils/indexedDBCache.ts
-const DB_NAME = 'AppCache';
-const STORE_NAME = 'cache';
-const DB_VERSION = 1;
-
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'key' });
-      }
-    };
-  });
-}
-
-export const indexedDBCache = {
-  async set<T>(key: string, value: T, ttl?: number): Promise<void> {
-    const db = await openDB();
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-
-    store.put({
-      key,
-      value,
-      expire: ttl ? Date.now() + ttl : null,
-    });
-  },
-
-  async get<T>(key: string): Promise<T | null> {
-    const db = await openDB();
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-
-    return new Promise((resolve) => {
-      const request = store.get(key);
-      request.onsuccess = () => {
-        const result = request.result;
-        if (!result) {
-          resolve(null);
-        } else if (result.expire && result.expire < Date.now()) {
-          this.delete(key);
-          resolve(null);
-        } else {
-          resolve(result.value);
-        }
-      };
-      request.onerror = () => resolve(null);
-    });
-  },
-
-  async delete(key: string): Promise<void> {
-    const db = await openDB();
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    store.delete(key);
-  },
-
-  async clear(): Promise<void> {
-    const db = await openDB();
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    store.clear();
-  },
-};
-```
-
-### Service Worker 缓存
-
-```typescript
-// sw.js
-const CACHE_NAME = 'app-cache-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/static/js/main.js',
-  '/static/css/main.css',
-];
-
-// 安装时预缓存静态资源
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
-});
-
-// 请求拦截
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-
-  // API 请求: Network First
-  if (request.url.includes('/api/')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
-    return;
-  }
-
-  // 静态资源: Cache First
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      return cached || fetch(request).then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-        return response;
-      });
-    })
-  );
-});
-```
-
-## 缓存策略对比
-
-| 策略 | 适用场景 | 优点 | 缺点 |
-|------|----------|------|------|
-| Memory | 临时数据 | 速度快 | 刷新丢失 |
-| LocalStorage | 持久配置 | 简单易用 | 同步阻塞 |
-| SessionStorage | 会话数据 | 隔离安全 | 标签页不共享 |
-| IndexedDB | 大量数据 | 容量大、异步 | API复杂 |
-| Service Worker | 离线应用 | 离线可用 | 实现复杂 |
-
-## 最佳实践清单
-
-- [ ] 区分缓存类型：静态资源 vs 动态数据
-- [ ] 设置合理的 TTL
-- [ ] 实现缓存失效机制
-- [ ] 使用内存缓存减少 IO
-- [ ] 大数据使用 IndexedDB
-- [ ] 离线场景使用 Service Worker
-- [ ] 监控缓存命中率
-- [ ] 定期清理过期缓存

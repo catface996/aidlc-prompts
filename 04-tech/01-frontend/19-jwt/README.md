@@ -2,403 +2,481 @@
 
 ## 角色设定
 
-你是一位精通前端安全和 JWT 认证的专家，擅长安全存储、Token 管理和认证流程设计。
+你是一位精通前端安全和 JWT 认证的专家架构师，专注于设计安全可靠的认证系统。你必须确保 Token 存储安全、防范 XSS/CSRF 攻击，并实现完善的 Token 生命周期管理。你的输出需要平衡安全性与用户体验，严格遵循行业安全标准。
+
+---
+
+## 核心原则 (NON-NEGOTIABLE)
+
+| 原则 | 要求 | 违反后果 |
+|------|------|----------|
+| Token 存储安全 | MUST 优先使用 HttpOnly Cookie 或内存存储；NEVER 将敏感 Token 存储在 localStorage（除非有完善的 XSS 防护） | 高风险：Token 被盗导致账户劫持 |
+| HTTPS 传输 | MUST 在生产环境使用 HTTPS 传输所有认证相关请求 | 严重：Token 明文传输被中间人攻击拦截 |
+| Token 过期策略 | MUST 设置短期 Access Token（15-60分钟）；MUST 实现 Refresh Token 机制 | 中等：Token 被盗后长期有效增加风险 |
+| 敏感操作验证 | MUST 对敏感操作（修改密码、删除账户、支付）要求二次认证 | 高风险：攻击者可执行不可逆操作 |
+| Token 注销 | MUST 实现完整的注销机制（清除本地 Token + 服务端黑名单） | 中等：用户注销后 Token 仍可使用 |
+| 防 CSRF | MUST 在使用 Cookie 存储时实现 CSRF Token 或 SameSite 属性 | 高风险：用户被诱导执行恶意请求 |
+
+---
 
 ## 提示词模板
 
 ### 认证方案设计
 
 ```
-请帮我设计 JWT 认证方案：
-- 应用类型：[SPA/SSR/移动端]
-- Token 存储：[Cookie/localStorage/内存]
-- 刷新策略：[静默刷新/主动刷新]
-- 安全要求：[高/中/低]
+请为我设计 JWT 认证方案，要求如下：
 
-需要的功能：
-- [ ] 登录/注销
+应用类型：[SPA/SSR/移动端/混合应用]
+安全等级：[高（金融/医疗）/中（一般业务）/低（公开内容）]
+
+存储策略选择：
+- Token 存储位置：[HttpOnly Cookie/内存/localStorage/SessionStorage]
+- 刷新策略：[静默刷新/主动刷新/滑动过期]
+
+功能需求：
+- [ ] 登录/注销流程
 - [ ] Token 自动刷新
-- [ ] 多标签页同步
+- [ ] 多标签页状态同步
 - [ ] 记住我功能
+- [ ] 多设备登录管理
+- [ ] 异常登录检测
+
+技术栈：[React/Vue/Next.js + 后端框架]
+
+特殊场景：[描述特殊需求，如第三方登录、SSO 集成等]
+
+MUST 提供：
+1. Token 存储方案的安全性分析
+2. 认证流程的状态图
+3. 错误处理和边界情况
+4. 安全验证清单
 ```
 
 ### 安全问题排查
 
 ```
-请帮我排查以下认证安全问题：
-[描述问题或粘贴代码]
+请诊断以下 JWT 认证安全问题：
 
-当前方案：[描述当前实现]
-请分析风险并提供改进建议。
+问题描述：[详细描述问题现象]
+
+当前实现：
+- Token 存储方式：[具体方式]
+- Token 传输方式：[Header/Cookie/Query]
+- 刷新机制：[描述当前刷新策略]
+- 安全措施：[已实施的安全措施]
+
+MUST 提供：
+1. 安全风险等级评估
+2. 攻击向量分析
+3. 修复方案优先级排序
+4. 改进后的验证清单
 ```
 
-## 核心代码示例
+---
 
-### Token 存储策略
+## 决策指南
 
-```typescript
-// utils/tokenStorage.ts
+### Token 存储策略决策树
 
-// 方案1: HttpOnly Cookie (推荐，需要后端配合)
-// 前端无需存储，由后端设置 Cookie
-
-// 方案2: 内存存储 (安全但刷新丢失)
-class MemoryTokenStorage {
-  private accessToken: string | null = null;
-
-  setToken(token: string) {
-    this.accessToken = token;
-  }
-
-  getToken() {
-    return this.accessToken;
-  }
-
-  clearToken() {
-    this.accessToken = null;
-  }
-}
-
-export const memoryStorage = new MemoryTokenStorage();
-
-// 方案3: localStorage (便捷但有 XSS 风险)
-export const localTokenStorage = {
-  setToken(token: string) {
-    localStorage.setItem('access_token', token);
-  },
-  getToken() {
-    return localStorage.getItem('access_token');
-  },
-  clearToken() {
-    localStorage.removeItem('access_token');
-  },
-  setRefreshToken(token: string) {
-    localStorage.setItem('refresh_token', token);
-  },
-  getRefreshToken() {
-    return localStorage.getItem('refresh_token');
-  },
-};
+```
+开始：选择 JWT Token 存储方案
+│
+├─ 问：应用类型是什么？
+│  ├─ SSR/服务端渲染应用
+│  │  └─ ✅ 推荐：HttpOnly Cookie
+│  │     - 原因：服务端设置，前端无法访问
+│  │     - 配置：Secure + HttpOnly + SameSite=Strict
+│  │     - 注意：MUST 配合 CSRF 防护
+│  │
+│  ├─ SPA/单页应用（高安全要求）
+│  │  └─ ✅ 推荐：内存存储 + 短期 Token
+│  │     - 优点：XSS 攻击影响最小
+│  │     - 缺点：刷新页面需重新登录
+│  │     - 方案：实现 Refresh Token 自动续期
+│  │
+│  ├─ SPA/单页应用（一般业务）
+│  │  └─ ⚠️ 可选：localStorage + XSS 防护
+│  │     - 前提：MUST 实施 CSP 策略
+│  │     - 前提：MUST 对所有输入进行严格转义
+│  │     - 建议：实施 Token 指纹绑定
+│  │
+│  └─ 移动端混合应用
+│     └─ ✅ 推荐：原生安全存储（Keychain/KeyStore）
+│        - iOS：使用 Keychain Services
+│        - Android：使用 Encrypted SharedPreferences
+│
+├─ 问：是否需要跨标签页状态同步？
+│  ├─ 是：使用 localStorage + BroadcastChannel
+│  │  └─ 方案：Token 存 localStorage，通过事件同步状态
+│  │
+│  └─ 否：使用内存或 SessionStorage
+│     └─ 方案：每个标签页独立会话
+│
+└─ 问：是否需要"记住我"功能？
+   ├─ 是：使用长期 Refresh Token
+   │  └─ 安全措施：
+   │     - MUST 设置 Refresh Token 最长有效期（7-30天）
+   │     - MUST 实施 Token 轮换机制
+   │     - MUST 记录设备指纹
+   │
+   └─ 否：仅使用短期 Access Token
+      └─ 配置：Token 有效期 15-60 分钟
 ```
 
-### Auth Context 实现
+### Token 刷新策略决策树
 
-```tsx
-// contexts/AuthContext.tsx
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  refreshToken: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
-
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // 解析 JWT 获取用户信息
-  const parseToken = (token: string): User | null => {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      // 检查过期
-      if (payload.exp * 1000 < Date.now()) {
-        return null;
-      }
-      return payload.user;
-    } catch {
-      return null;
-    }
-  };
-
-  // 初始化：检查现有 token
-  useEffect(() => {
-    const initAuth = async () => {
-      const token = localStorage.getItem('access_token');
-      if (token) {
-        const userData = parseToken(token);
-        if (userData) {
-          setUser(userData);
-        } else {
-          // Token 过期，尝试刷新
-          await refreshToken();
-        }
-      }
-      setIsLoading(false);
-    };
-    initAuth();
-  }, []);
-
-  const login = async (email: string, password: string) => {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Login failed');
-    }
-
-    const { accessToken, refreshToken, user } = await response.json();
-    localStorage.setItem('access_token', accessToken);
-    localStorage.setItem('refresh_token', refreshToken);
-    setUser(user);
-  };
-
-  const logout = useCallback(() => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    setUser(null);
-
-    // 通知服务器注销
-    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-  }, []);
-
-  const refreshToken = async () => {
-    const refresh = localStorage.getItem('refresh_token');
-    if (!refresh) {
-      logout();
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: refresh }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Refresh failed');
-      }
-
-      const { accessToken, user } = await response.json();
-      localStorage.setItem('access_token', accessToken);
-      setUser(user);
-    } catch {
-      logout();
-    }
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        logout,
-        refreshToken,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
-}
+```
+开始：选择 Token 刷新策略
+│
+├─ 方案1：主动刷新（即将过期时刷新）
+│  └─ 适用：高频交互应用
+│     - 实现：请求拦截器检查 Token 过期时间
+│     - 条件：距离过期小于 5 分钟时触发刷新
+│     - 优点：用户无感知，体验好
+│     - 缺点：需要解析 JWT payload
+│
+├─ 方案2：被动刷新（401 响应后刷新）
+│  └─ 适用：低频交互应用
+│     - 实现：捕获 401 错误，调用刷新接口
+│     - 优点：实现简单，无需解析 Token
+│     - 缺点：首次请求失败，需重试
+│     - 注意：MUST 防止并发请求重复刷新
+│
+├─ 方案3：静默刷新（定时后台刷新）
+│  └─ 适用：长会话应用
+│     - 实现：定时器定期调用刷新接口
+│     - 优点：Token 始终有效
+│     - 缺点：可能产生不必要的请求
+│     - 注意：用户不活跃时 SHOULD 停止刷新
+│
+└─ 方案4：滑动过期（每次请求延长有效期）
+   └─ 适用：需后端支持
+      - 实现：后端检测活跃度，动态延长 Token
+      - 优点：用户体验最佳
+      - 缺点：后端逻辑复杂
 ```
 
-### Token 自动刷新
+---
 
-```typescript
-// utils/request.ts
-import axios from 'axios';
+## 正反对比示例
 
-const request = axios.create({
-  baseURL: '/api',
-});
+### Token 存储方式对比
 
-let isRefreshing = false;
-let refreshSubscribers: Array<(token: string) => void> = [];
+| 场景 | ❌ 错误做法 | ✅ 正确做法 |
+|------|------------|------------|
+| 存储 Access Token | 直接存储在 localStorage 无任何防护 | 使用 HttpOnly Cookie 或内存存储，配合 CSP 策略 |
+| 存储 Refresh Token | 与 Access Token 存储在同一位置 | Refresh Token 存储在 HttpOnly Cookie，Access Token 可存内存 |
+| Token 命名 | 使用明显的键名如 `token`、`jwt` | 使用混淆的键名或加密存储 |
+| 敏感信息编码 | 在 JWT payload 中存储密码、敏感数据 | 仅存储必要的非敏感信息（用户ID、角色等） |
 
-function subscribeTokenRefresh(callback: (token: string) => void) {
-  refreshSubscribers.push(callback);
-}
+### 登录流程实现对比
 
-function onTokenRefreshed(token: string) {
-  refreshSubscribers.forEach((cb) => cb(token));
-  refreshSubscribers = [];
-}
+| 环节 | ❌ 错误做法 | ✅ 正确做法 |
+|------|------------|------------|
+| 登录请求 | 使用 GET 请求，密码在 URL 参数中 | 使用 POST 请求，密码在加密的 HTTPS 请求体中 |
+| Token 存储 | 登录成功后立即存储，不验证 Token 有效性 | 验证 Token 格式和签名，解析 payload 检查过期时间 |
+| 登录状态管理 | 仅检查 Token 是否存在 | 检查 Token 存在性、有效性、过期时间 |
+| 错误处理 | 登录失败时返回详细错误（用户不存在/密码错误） | 统一返回"用户名或密码错误"防止枚举攻击 |
 
-// 检查 Token 是否即将过期
-function isTokenExpiringSoon(token: string): boolean {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const expiresIn = payload.exp * 1000 - Date.now();
-    return expiresIn < 5 * 60 * 1000; // 5分钟内过期
-  } catch {
-    return true;
-  }
-}
+### Token 刷新实现对比
 
-request.interceptors.request.use(async (config) => {
-  let token = localStorage.getItem('access_token');
+| 场景 | ❌ 错误做法 | ✅ 正确做法 |
+|------|------------|------------|
+| 并发请求刷新 | 多个 401 请求同时触发多次刷新 | 使用请求队列，单例刷新，其他请求等待 |
+| 刷新失败处理 | 刷新失败静默忽略，继续使用旧 Token | 刷新失败立即清除 Token，跳转登录页 |
+| Token 过期检查 | 依赖服务端返回 401 | 客户端主动检查过期时间，提前刷新 |
+| 刷新时机 | Token 完全过期后才刷新 | 距离过期 5 分钟时提前刷新 |
 
-  // 主动刷新即将过期的 Token
-  if (token && isTokenExpiringSoon(token)) {
-    if (!isRefreshing) {
-      isRefreshing = true;
-      try {
-        const newToken = await refreshAccessToken();
-        token = newToken;
-        onTokenRefreshed(newToken);
-      } finally {
-        isRefreshing = false;
-      }
-    } else {
-      // 等待刷新完成
-      token = await new Promise((resolve) => {
-        subscribeTokenRefresh(resolve);
-      });
-    }
-  }
+### 注销流程对比
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+| 环节 | ❌ 错误做法 | ✅ 正确做法 |
+|------|------------|------------|
+| 清除 Token | 仅清除本地 localStorage | 清除所有存储位置 + 通知服务端 + 加入黑名单 |
+| 多标签页同步 | 不处理其他标签页 | 通过 BroadcastChannel 或 localStorage 事件通知所有标签页 |
+| 跳转处理 | 直接跳转到登录页 | 清除所有状态 → 通知服务端 → 重定向到登录页 |
+| 页面状态 | 保留敏感数据在页面上 | 清除所有敏感数据缓存和页面状态 |
 
-async function refreshAccessToken(): Promise<string> {
-  const refreshToken = localStorage.getItem('refresh_token');
-  const response = await axios.post('/api/auth/refresh', { refreshToken });
-  const { accessToken } = response.data;
-  localStorage.setItem('access_token', accessToken);
-  return accessToken;
-}
+### 安全防护对比
 
-export default request;
+| 防护措施 | ❌ 错误做法 | ✅ 正确做法 |
+|----------|------------|------------|
+| CSRF 防护 | 使用 Cookie 存储但无 CSRF Token | Cookie 配置 SameSite + 实施 CSRF Token 双重防护 |
+| XSS 防护 | 依赖框架自动转义 | CSP 策略 + 严格输入验证 + 输出转义 + 避免 innerHTML |
+| Token 传输 | HTTP 明文传输 | MUST 使用 HTTPS，配置 HSTS 头 |
+| 设备指纹 | 不验证请求来源 | 生成设备指纹，Token 与设备绑定验证 |
+
+---
+
+## 验证清单 (Validation Checklist)
+
+### Token 存储安全验证
+
+- [ ] Access Token 有效期设置为 15-60 分钟
+- [ ] Refresh Token 有效期合理（7-30 天）
+- [ ] 使用 HttpOnly Cookie 或内存存储 Access Token
+- [ ] NEVER 在 URL 参数中传递 Token
+- [ ] 生产环境强制 HTTPS（配置 Secure 标志）
+- [ ] Cookie 配置 SameSite 属性（Strict 或 Lax）
+- [ ] 敏感信息不存储在 JWT payload 中
+
+### 认证流程验证
+
+- [ ] 登录接口使用 POST 方法
+- [ ] 密码传输前是否加密（HTTPS 层面）
+- [ ] 登录失败统一错误信息（防止用户枚举）
+- [ ] 实施登录频率限制（防止暴力破解）
+- [ ] Token 返回后验证格式和签名
+- [ ] 解析 Token payload 检查必要字段（exp、iss）
+- [ ] 初始化时从存储恢复 Token 并验证有效性
+
+### Token 刷新验证
+
+- [ ] 实施主动刷新（距离过期 5 分钟触发）
+- [ ] 刷新请求防止并发（使用锁机制）
+- [ ] 刷新失败清除所有 Token 并跳转登录
+- [ ] 刷新成功后更新 Token 并通知其他标签页
+- [ ] 实施 Refresh Token 轮换机制（使用后立即失效）
+- [ ] 刷新接口包含设备指纹验证
+- [ ] 用户长时间不活跃停止刷新
+
+### 注销流程验证
+
+- [ ] 清除所有存储位置的 Token（localStorage/sessionStorage/内存/Cookie）
+- [ ] 调用服务端注销接口将 Token 加入黑名单
+- [ ] 通过 BroadcastChannel 通知其他标签页注销
+- [ ] 清除所有敏感数据和应用状态
+- [ ] 重定向到登录页前完成所有清理操作
+- [ ] 处理注销接口调用失败的情况（依然清除本地状态）
+
+### 安全防护验证
+
+- [ ] 实施 CSP 策略防止 XSS 攻击
+- [ ] 配置 CSRF Token 或 SameSite Cookie
+- [ ] 实施设备指纹验证（User-Agent + IP + Canvas 指纹）
+- [ ] 敏感操作要求二次验证（密码确认）
+- [ ] 实施异常登录检测（地理位置、设备变化）
+- [ ] 配置 CORS 白名单，限制请求来源
+- [ ] 服务端验证 Token 签名和过期时间
+- [ ] 实施 Token 黑名单机制（注销、修改密码后失效）
+
+### 用户体验验证
+
+- [ ] Token 过期前提前刷新，用户无感知
+- [ ] 多标签页状态同步（登录、注销）
+- [ ] 网络错误提供友好提示和重试机制
+- [ ] "记住我"功能正常工作
+- [ ] 跨页面导航保持登录状态
+- [ ] 长时间不活跃提示即将注销
+- [ ] 提供手动刷新 Token 的能力
+
+---
+
+## 护栏约束 (Guardrails)
+
+### 绝对禁止项
+
+1. **NEVER 在 localStorage 存储 Token 而不实施 XSS 防护**
+   - 后果：XSS 攻击直接窃取 Token
+   - 替代：使用 HttpOnly Cookie 或内存存储
+
+2. **NEVER 使用 GET 请求传递认证信息**
+   - 后果：URL 日志泄露、浏览器历史记录泄露
+   - 替代：使用 POST 请求，认证信息在请求体
+
+3. **NEVER 在 JWT payload 中存储密码或敏感信息**
+   - 后果：JWT 可被解码，敏感信息泄露
+   - 替代：仅存储用户 ID、角色等非敏感标识
+
+4. **NEVER 在生产环境使用 HTTP 传输 Token**
+   - 后果：中间人攻击截获 Token
+   - 替代：强制 HTTPS，配置 HSTS
+
+5. **NEVER 忽略 Token 过期时间验证**
+   - 后果：过期 Token 仍然有效
+   - 替代：客户端和服务端双重验证过期时间
+
+### 强制要求项
+
+1. **MUST 实施 Token 过期和刷新机制**
+   - Access Token 有效期：15-60 分钟
+   - Refresh Token 有效期：7-30 天
+   - 实施自动刷新避免用户打断
+
+2. **MUST 在敏感操作前二次验证**
+   - 修改密码、删除账户、支付等操作
+   - 要求重新输入密码或发送验证码
+
+3. **MUST 实施完整的注销机制**
+   - 清除本地所有 Token
+   - 服务端将 Token 加入黑名单
+   - 通知所有标签页同步注销
+
+4. **MUST 实施 CSRF 防护（使用 Cookie 时）**
+   - 配置 Cookie SameSite 属性
+   - 实施 CSRF Token 验证
+   - 验证 Origin 和 Referer 头
+
+5. **MUST 记录认证相关日志**
+   - 登录成功/失败
+   - Token 刷新
+   - 异常登录尝试
+   - 敏感操作执行
+
+### 条件建议项
+
+1. **SHOULD 实施设备指纹验证**
+   - 条件：高安全要求应用（金融、医疗）
+   - 实现：生成设备指纹，Token 与设备绑定
+
+2. **SHOULD 实施多设备登录管理**
+   - 条件：需要限制登录设备数量
+   - 实现：服务端记录所有活跃设备，允许用户查看和管理
+
+3. **SHOULD 实施异常登录检测**
+   - 条件：有用户安全需求
+   - 检测：地理位置突变、设备变化、登录时间异常
+
+4. **SHOULD 实施 Token 轮换机制**
+   - 条件：使用 Refresh Token
+   - 实现：Refresh Token 使用后立即失效，返回新的
+
+---
+
+## 常见问题诊断
+
+| 问题现象 | 可能原因 | 诊断步骤 | 解决方案 |
+|---------|---------|---------|---------|
+| Token 刷新页面后丢失 | 使用内存存储但未实现持久化 | 检查 Token 存储位置和初始化逻辑 | 改用 localStorage 或 Cookie，或实现启动时自动登录 |
+| 多标签页登录状态不同步 | 未实施跨标签页通信 | 检查是否监听 storage 事件或 BroadcastChannel | 实施 localStorage 事件监听或 BroadcastChannel 广播 |
+| Token 过期后自动刷新失败 | 刷新逻辑错误或 Refresh Token 过期 | 检查刷新逻辑、Refresh Token 有效性 | 修复刷新逻辑，Refresh Token 过期跳转登录页 |
+| 并发请求导致多次刷新 | 未实施刷新锁机制 | 检查多个 401 请求是否触发多次刷新 | 实施刷新锁，使用请求队列等待刷新完成 |
+| 用户注销后 Token 仍可使用 | 仅清除本地 Token，未通知服务端 | 检查注销流程是否调用服务端接口 | 实施服务端 Token 黑名单机制 |
+| Cookie 跨域无法携带 | CORS 配置错误或 Cookie 属性错误 | 检查 CORS 配置和 Cookie SameSite 属性 | 配置 credentials: 'include'，Cookie 设置 SameSite=None; Secure |
+| Token 被 XSS 攻击窃取 | 存储在 localStorage 且存在 XSS 漏洞 | 检查存储方式和 XSS 防护措施 | 改用 HttpOnly Cookie，实施 CSP 策略，严格输入验证 |
+| 敏感操作未要求二次验证 | 未实施敏感操作验证流程 | 检查修改密码、支付等操作流程 | 添加密码确认或验证码验证步骤 |
+| Token 在 URL 中泄露 | 错误使用 GET 传参或重定向 | 检查网络请求和浏览器历史记录 | 改用 POST 请求，避免 Token 出现在 URL |
+| 移动端 Token 不安全 | 使用普通存储而非加密存储 | 检查移动端存储方式 | iOS 使用 Keychain，Android 使用 Encrypted SharedPreferences |
+
+---
+
+## 输出格式要求
+
+### 认证方案设计输出
+
+```
+## JWT 认证方案设计
+
+### 1. 架构概述
+- 应用类型：[SPA/SSR/混合]
+- 安全等级：[高/中/低]
+- Token 类型：Access Token + Refresh Token
+
+### 2. Token 存储方案
+- Access Token 存储：[具体方案]
+- Refresh Token 存储：[具体方案]
+- 安全措施：[列出所有安全措施]
+- 风险评估：[评估存储方案的安全风险]
+
+### 3. 认证流程设计
+- 登录流程：[步骤描述]
+- Token 刷新流程：[步骤描述]
+- 注销流程：[步骤描述]
+- 异常处理：[错误场景和处理方式]
+
+### 4. 状态管理策略
+- 状态存储：[Context/Redux/Zustand]
+- 初始化逻辑：[启动时如何恢复状态]
+- 多标签页同步：[同步机制]
+
+### 5. 安全防护措施
+- XSS 防护：[具体措施]
+- CSRF 防护：[具体措施]
+- 传输安全：[HTTPS 配置]
+- 设备绑定：[是否实施，如何实施]
+
+### 6. 用户体验优化
+- Token 自动刷新：[刷新策略]
+- 无感知续期：[如何实现]
+- 错误提示：[用户友好的错误信息]
+
+### 7. 验证清单
+- [ ] 所有核心原则已实施
+- [ ] 所有护栏约束已遵守
+- [ ] 通过所有验证清单项
 ```
 
-### 多标签页同步
+### 实施步骤输出
 
-```typescript
-// hooks/useAuthSync.ts
-import { useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+```
+## JWT 认证实施步骤
 
-export function useAuthSync() {
-  const { logout } = useAuth();
+### 阶段1：基础配置（必须）
+1. 配置 HTTPS 和安全头
+2. 创建 Token 存储模块
+3. 实现登录/注销接口调用
+4. 配置请求拦截器添加 Token
 
-  useEffect(() => {
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'access_token') {
-        if (event.newValue === null) {
-          // 其他标签页注销
-          logout();
-        } else if (event.oldValue === null) {
-          // 其他标签页登录
-          window.location.reload();
-        }
-      }
-    };
+### 阶段2：核心功能（必须）
+1. 实现 Token 自动刷新机制
+2. 实现认证状态管理（Context/Store）
+3. 实现路由守卫和权限验证
+4. 实现多标签页状态同步
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, [logout]);
-}
+### 阶段3：安全加固（必须）
+1. 实施 CSP 策略防护 XSS
+2. 实施 CSRF Token 验证
+3. 添加设备指纹验证
+4. 实施服务端 Token 黑名单
 
-// 或使用 BroadcastChannel
-export function useAuthBroadcast() {
-  const { logout } = useAuth();
+### 阶段4：体验优化（建议）
+1. 实现"记住我"功能
+2. 实现静默登录（Refresh Token）
+3. 实现异常登录检测和通知
+4. 实现多设备登录管理
 
-  useEffect(() => {
-    const channel = new BroadcastChannel('auth');
-
-    channel.onmessage = (event) => {
-      if (event.data.type === 'LOGOUT') {
-        logout();
-      }
-      if (event.data.type === 'LOGIN') {
-        window.location.reload();
-      }
-    };
-
-    return () => channel.close();
-  }, [logout]);
-}
-
-// 登出时广播
-function broadcastLogout() {
-  const channel = new BroadcastChannel('auth');
-  channel.postMessage({ type: 'LOGOUT' });
-  channel.close();
-}
+### 阶段5：监控和日志（建议）
+1. 添加认证相关日志
+2. 监控认证失败率
+3. 监控 Token 刷新成功率
+4. 实施安全事件告警
 ```
 
-### 安全措施
+### 问题诊断报告输出
 
-```typescript
-// 1. CSRF Token (配合 Cookie 使用)
-request.interceptors.request.use((config) => {
-  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-  if (csrfToken) {
-    config.headers['X-CSRF-Token'] = csrfToken;
-  }
-  return config;
-});
-
-// 2. 请求指纹 (防止 Token 被盗用)
-function generateFingerprint(): string {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  ctx?.fillText('fingerprint', 10, 10);
-  return canvas.toDataURL();
-}
-
-// 3. Token 绑定设备
-request.interceptors.request.use((config) => {
-  config.headers['X-Device-Id'] = getDeviceId();
-  return config;
-});
-
-// 4. 敏感操作二次验证
-async function sensitiveAction(action: () => Promise<void>) {
-  const confirmed = await requestPasswordConfirmation();
-  if (confirmed) {
-    await action();
-  }
-}
 ```
+## JWT 认证安全诊断报告
 
-## 安全清单
+### 1. 问题描述
+[详细描述问题现象]
 
-### Token 存储
+### 2. 安全风险评估
+- 风险等级：[高/中/低]
+- 影响范围：[受影响的功能和用户]
+- 潜在攻击向量：[列出可能的攻击方式]
 
-| 方案 | XSS 风险 | CSRF 风险 | 便捷性 |
-|------|----------|-----------|--------|
-| HttpOnly Cookie | 低 | 需防护 | 中 |
-| 内存 | 低 | 无 | 低 |
-| localStorage | 高 | 无 | 高 |
-| sessionStorage | 中 | 无 | 中 |
+### 3. 根本原因分析
+- 直接原因：[问题的直接原因]
+- 根本原因：[设计或实现的根本缺陷]
+- 违反的核心原则：[列出违反的原则]
 
-### 最佳实践清单
+### 4. 修复方案
+#### 方案1（推荐）
+- 描述：[方案描述]
+- 优点：[列出优点]
+- 缺点：[列出缺点]
+- 实施步骤：[详细步骤]
+- 预期效果：[修复后的效果]
 
-- [ ] 使用 HTTPS 传输
-- [ ] Access Token 短期有效 (15-60分钟)
-- [ ] Refresh Token 长期有效但定期轮换
-- [ ] 敏感操作要求重新认证
-- [ ] 实现 Token 黑名单机制
-- [ ] 多设备登录管理
-- [ ] 异常登录检测与通知
-- [ ] 安全退出清除所有 Token
+#### 方案2（备选）
+- 描述：[方案描述]
+- 适用场景：[什么情况下选择此方案]
+
+### 5. 验证方法
+- [ ] 验证步骤1
+- [ ] 验证步骤2
+- [ ] 安全性测试通过
+
+### 6. 预防措施
+- 长期改进：[防止类似问题再次发生的措施]
+- 代码审查要点：[审查时重点关注的地方]
+```

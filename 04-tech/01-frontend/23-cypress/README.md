@@ -1,480 +1,558 @@
-# Cypress E2E 测试最佳实践
+# Cypress E2E 测试专项
 
 ## 角色设定
 
-你是一位精通 Cypress 的前端测试专家，擅长 E2E 测试、组件测试和测试自动化。
+你是一位精通 Cypress 端到端测试的专家工程师，负责设计和实施可靠的 E2E 测试方案。你擅长自动化测试、用户流程测试和测试稳定性优化，熟悉 Cypress 生态和最佳实践。
+
+核心职责：
+- 设计覆盖关键业务流程的 E2E 测试场景
+- 编写稳定可靠的自动化测试脚本
+- 优化测试执行速度和稳定性
+- 集成测试到 CI/CD 流程
+
+## 核心原则 (NON-NEGOTIABLE)
+
+| 原则 | 说明 | 违反后果 |
+|------|------|---------|
+| 测试关键路径 | 只测试核心业务流程和用户路径，不追求全覆盖 | 测试运行缓慢，维护成本高 |
+| 用户视角 | 从真实用户角度编写测试，模拟实际操作流程 | 测试脱离实际，无法发现真实问题 |
+| 测试稳定性 | 确保测试可重复运行，避免 flaky 测试 | 测试不可靠，浪费时间调查假失败 |
+| 合理等待 | 使用 Cypress 内置的自动等待和重试机制 | 使用固定延迟导致测试不稳定或过慢 |
+| 数据隔离 | 每个测试独立准备和清理数据，互不影响 | 测试之间相互干扰，难以定位问题 |
+| Mock 外部依赖 | Mock 第三方服务和不可控因素 | 测试依赖外部服务，不稳定 |
+| 选择器稳定 | 使用 data-testid 等稳定选择器，不依赖实现细节 | 代码重构导致测试大量失败 |
 
 ## 提示词模板
 
-### Cypress 测试
+### E2E 测试编写模板
 
 ```
-请帮我编写 Cypress 测试：
-- 测试场景：[描述业务场景]
-- 页面路径：[页面 URL]
-- 关键操作：[列出操作步骤]
-- 断言要点：[期望结果]
+你是 Cypress E2E 测试专家。请编写以下场景的测试：
 
-请提供完整的测试代码。
+【业务场景】
+- 场景名称：[如"用户注册流程"、"商品购买流程"]
+- 涉及页面：[列出涉及的页面路径]
+- 关键操作：[列出用户操作步骤]
+- 预期结果：[描述期望的最终状态]
+
+【前置条件】
+- 用户状态：[未登录/已登录/特定权限]
+- 数据准备：[需要的测试数据]
+- 环境要求：[特殊配置或依赖]
+
+【测试要点】
+- 正常流程：[Happy Path 验证]
+- 异常处理：[错误情况、网络问题、边界情况]
+- 用户反馈：[加载状态、成功提示、错误提示]
+
+请提供：
+1. 测试用例描述（使用 describe/it 结构文本说明）
+2. 测试步骤说明（关键操作和断言）
+3. Mock 策略（哪些 API 需要 Mock）
+4. 数据准备和清理方案
 ```
 
-## 核心配置示例
+### Cypress 配置优化模板
 
-### Cypress 配置
+```
+你是 Cypress 测试专家。请为以下项目优化 Cypress 配置：
 
-```typescript
-// cypress.config.ts
-import { defineConfig } from 'cypress';
+【项目情况】
+- 应用类型：[SPA/SSR/多页应用]
+- 技术栈：[React/Vue/Next.js + 后端技术]
+- 测试规模：[测试文件数量，预计测试用例数]
+- CI/CD：[GitHub Actions/GitLab CI/Jenkins]
 
-export default defineConfig({
-  e2e: {
-    baseUrl: 'http://localhost:3000',
-    supportFile: 'cypress/support/e2e.ts',
-    specPattern: 'cypress/e2e/**/*.cy.{js,jsx,ts,tsx}',
-    viewportWidth: 1280,
-    viewportHeight: 720,
-    video: true,
-    screenshotOnRunFailure: true,
-    defaultCommandTimeout: 10000,
-    requestTimeout: 10000,
-    responseTimeout: 30000,
-    retries: {
-      runMode: 2,
-      openMode: 0,
-    },
-    env: {
-      apiUrl: 'http://localhost:8080/api',
-    },
-    setupNodeEvents(on, config) {
-      // 任务和插件
-      on('task', {
-        log(message) {
-          console.log(message);
-          return null;
-        },
-        clearDatabase() {
-          // 清理测试数据
-          return null;
-        },
-      });
+【当前问题】
+- 测试运行时间：[当前耗时]
+- 测试稳定性：[flaky 测试占比]
+- 特殊需求：[跨域、文件上传、第三方集成等]
 
-      return config;
-    },
-  },
-  component: {
-    devServer: {
-      framework: 'react',
-      bundler: 'vite',
-    },
-    specPattern: 'src/**/*.cy.{js,jsx,ts,tsx}',
-  },
-});
+【优化目标】
+- 运行速度：[目标时间]
+- 稳定性：[成功率目标]
+- 并行执行：[是否需要]
+
+请提供：
+1. Cypress 配置优化建议
+2. 自定义命令设计方案
+3. 测试组织结构建议
+4. CI/CD 集成方案
+5. 性能和稳定性优化措施
 ```
 
-### 支持文件
+### 测试稳定性诊断模板
 
-```typescript
-// cypress/support/e2e.ts
-import './commands';
+```
+你是 Cypress 测试专家。请诊断以下测试的稳定性问题：
 
-// 全局钩子
-beforeEach(() => {
-  // 清除 localStorage
-  cy.clearLocalStorage();
-  // 清除 cookies
-  cy.clearCookies();
-});
+【问题描述】
+- 测试场景：[测试的功能]
+- 失败频率：[偶尔失败/频繁失败/随机失败]
+- 失败现象：[超时/元素未找到/断言失败/其他]
+- 错误信息：[粘贴错误日志]
 
-// 忽略未捕获的异常
-Cypress.on('uncaught:exception', (err) => {
-  // 返回 false 阻止测试失败
-  if (err.message.includes('ResizeObserver')) {
-    return false;
-  }
-  return true;
-});
+【测试环境】
+- 运行环境：[本地/CI，浏览器版本]
+- 网络条件：[正常/慢速]
+- 数据状态：[数据准备方式]
+
+请分析：
+1. 可能的根因（按概率排序）
+2. 诊断方法和验证步骤
+3. 解决方案（多种方案对比）
+4. 预防措施
 ```
 
-### 自定义命令
+## 决策指南
 
-```typescript
-// cypress/support/commands.ts
-declare global {
-  namespace Cypress {
-    interface Chainable {
-      login(username: string, password: string): Chainable<void>;
-      logout(): Chainable<void>;
-      getByTestId(testId: string): Chainable<JQuery<HTMLElement>>;
-      mockApi(fixture: string): Chainable<void>;
-    }
-  }
-}
+### 测试场景优先级决策树
 
-// 登录命令
-Cypress.Commands.add('login', (username: string, password: string) => {
-  cy.session([username, password], () => {
-    cy.visit('/login');
-    cy.get('[data-testid="username"]').type(username);
-    cy.get('[data-testid="password"]').type(password);
-    cy.get('[data-testid="submit"]').click();
-    cy.url().should('not.include', '/login');
-    cy.window().its('localStorage.token').should('exist');
-  });
-});
-
-// 登出命令
-Cypress.Commands.add('logout', () => {
-  cy.clearLocalStorage();
-  cy.clearCookies();
-  cy.visit('/login');
-});
-
-// 按 data-testid 获取元素
-Cypress.Commands.add('getByTestId', (testId: string) => {
-  return cy.get(`[data-testid="${testId}"]`);
-});
-
-// Mock API
-Cypress.Commands.add('mockApi', (fixture: string) => {
-  cy.intercept('GET', '/api/**', { fixture }).as('api');
-});
-
-export {};
+```
+确定 E2E 测试场景
+├─ P0 - 必须测试（关键业务路径）
+│  ├─ 用户身份流程
+│  │  ├─ 注册完整流程
+│  │  ├─ 登录和登出
+│  │  ├─ 密码重置流程
+│  │  └─ 多种登录方式（如适用）
+│  │
+│  ├─ 核心交易流程
+│  │  ├─ 商品浏览到下单
+│  │  ├─ 购物车操作
+│  │  ├─ 支付流程（Mock 支付）
+│  │  └─ 订单确认和查看
+│  │
+│  └─ 关键数据操作
+│     ├─ 数据创建和保存
+│     ├─ 数据编辑和更新
+│     └─ 数据删除（含确认）
+│
+├─ P1 - 应该测试（重要功能）
+│  ├─ 搜索和筛选功能
+│  ├─ 用户设置和配置
+│  ├─ 权限和角色切换
+│  └─ 导出和报表功能
+│
+├─ P2 - 可选测试（次要功能）
+│  ├─ 帮助和文档页面
+│  ├─ 通知和消息功能
+│  └─ 个性化设置
+│
+└─ 不建议 E2E 测试
+   ├─ 纯 UI 样式（用视觉回归测试）
+   ├─ 复杂表单验证（单元测试更合适）
+   └─ 边界情况（单元测试更高效）
 ```
 
-### E2E 测试示例
+### Mock 策略决策树
 
-```typescript
-// cypress/e2e/auth/login.cy.ts
-describe('Login', () => {
-  beforeEach(() => {
-    cy.visit('/login');
-  });
-
-  it('should display login form', () => {
-    cy.getByTestId('login-form').should('be.visible');
-    cy.getByTestId('username').should('be.visible');
-    cy.getByTestId('password').should('be.visible');
-    cy.getByTestId('submit').should('be.visible').and('be.disabled');
-  });
-
-  it('should enable submit button when form is valid', () => {
-    cy.getByTestId('username').type('testuser');
-    cy.getByTestId('password').type('password123');
-    cy.getByTestId('submit').should('not.be.disabled');
-  });
-
-  it('should show error for invalid credentials', () => {
-    cy.intercept('POST', '/api/auth/login', {
-      statusCode: 401,
-      body: { message: 'Invalid credentials' },
-    }).as('loginRequest');
-
-    cy.getByTestId('username').type('wronguser');
-    cy.getByTestId('password').type('wrongpass');
-    cy.getByTestId('submit').click();
-
-    cy.wait('@loginRequest');
-    cy.getByTestId('error-message')
-      .should('be.visible')
-      .and('contain', 'Invalid credentials');
-  });
-
-  it('should redirect to dashboard on successful login', () => {
-    cy.intercept('POST', '/api/auth/login', {
-      statusCode: 200,
-      body: { token: 'fake-token', user: { id: 1, name: 'Test User' } },
-    }).as('loginRequest');
-
-    cy.getByTestId('username').type('testuser');
-    cy.getByTestId('password').type('password123');
-    cy.getByTestId('submit').click();
-
-    cy.wait('@loginRequest');
-    cy.url().should('include', '/dashboard');
-    cy.getByTestId('welcome-message').should('contain', 'Test User');
-  });
-});
+```
+是否需要 Mock？
+├─ 第三方服务
+│  ├─ 支付网关 → 必须 Mock（避免实际扣费）
+│  ├─ 地图服务 → 建议 Mock（稳定性和速度）
+│  ├─ 社交登录 → 建议 Mock（避免真实账号依赖）
+│  └─ 分析和监控 → 建议 Mock（不影响测试）
+│
+├─ 后端 API
+│  ├─ 测试环境稳定 → 使用真实 API（更接近实际）
+│  ├─ 测试环境不稳定 → Mock 关键 API
+│  ├─ 特定错误场景 → Mock（模拟异常）
+│  └─ 慢速 API → 可选 Mock（提升速度）
+│
+├─ 时间敏感功能
+│  ├─ 定时任务 → Mock 时间（cy.clock）
+│  ├─ 倒计时 → Mock 时间
+│  └─ 日期选择 → 可使用真实日期
+│
+└─ 文件和媒体
+   ├─ 文件上传 → 使用 cy.fixture
+   ├─ 视频播放 → Mock 或使用测试视频
+   └─ 图片加载 → 可使用真实图片
 ```
 
-### 订单流程测试
+### 等待策略决策树
 
-```typescript
-// cypress/e2e/order/create-order.cy.ts
-describe('Create Order', () => {
-  beforeEach(() => {
-    cy.login('testuser', 'password123');
-    cy.visit('/products');
-  });
-
-  it('should complete order flow', () => {
-    // 选择商品
-    cy.getByTestId('product-card').first().click();
-    cy.getByTestId('add-to-cart').click();
-    cy.getByTestId('cart-count').should('contain', '1');
-
-    // 进入购物车
-    cy.getByTestId('cart-icon').click();
-    cy.url().should('include', '/cart');
-
-    // 修改数量
-    cy.getByTestId('quantity-input').clear().type('2');
-    cy.getByTestId('cart-total').should('not.be.empty');
-
-    // 结算
-    cy.getByTestId('checkout-btn').click();
-    cy.url().should('include', '/checkout');
-
-    // 填写收货地址
-    cy.getByTestId('address-name').type('John Doe');
-    cy.getByTestId('address-phone').type('13800138000');
-    cy.getByTestId('address-detail').type('123 Main St');
-
-    // 选择支付方式
-    cy.getByTestId('payment-alipay').click();
-
-    // 提交订单
-    cy.intercept('POST', '/api/orders', {
-      statusCode: 200,
-      body: { orderId: 'ORD123456' },
-    }).as('createOrder');
-
-    cy.getByTestId('submit-order').click();
-
-    cy.wait('@createOrder');
-    cy.url().should('include', '/order/success');
-    cy.getByTestId('order-id').should('contain', 'ORD123456');
-  });
-});
+```
+如何等待元素和状态？
+├─ 元素出现
+│  ├─ 简单元素 → cy.get() 自动等待
+│  ├─ 动态加载元素 → cy.get().should('be.visible')
+│  ├─ 条件渲染元素 → cy.get().should('exist')
+│  └─ 复杂加载 → 等待 API 完成 + 元素出现
+│
+├─ 网络请求
+│  ├─ 等待特定请求 → cy.intercept + cy.wait('@alias')
+│  ├─ 等待多个请求 → cy.wait([@alias1, @alias2])
+│  ├─ 等待请求完成 → 结合元素状态验证
+│  └─ 不可预测的请求 → 等待 UI 状态变化
+│
+├─ 动画和过渡
+│  ├─ CSS 动画 → cy.get().should('have.css', 'opacity', '1')
+│  ├─ 过渡效果 → 增加合理的 timeout
+│  └─ 复杂动画 → 等待动画结束的标志元素
+│
+└─ 避免的做法
+   ├─ ❌ cy.wait(固定时间) → 不稳定且浪费时间
+   ├─ ❌ 轮询检查 → Cypress 已内置重试
+   └─ ✅ 使用 cy.intercept + should 组合
 ```
 
-### API 拦截测试
+## 正反对比示例
 
-```typescript
-// cypress/e2e/api/data-loading.cy.ts
-describe('Data Loading', () => {
-  it('should show loading state', () => {
-    cy.intercept('GET', '/api/users', {
-      delay: 2000,
-      fixture: 'users.json',
-    }).as('getUsers');
+### 元素选择和等待
 
-    cy.login('admin', 'admin123');
-    cy.visit('/users');
+| 场景 | ❌ 不推荐做法 | ✅ 推荐做法 |
+|------|-------------|-----------|
+| 选择元素 | 使用不稳定的类名或结构：cy.get('.btn-primary') | 使用 data-testid：cy.get('[data-testid="submit-button"]') |
+| 等待元素 | 使用固定延迟：cy.wait(3000) | 使用自动等待：cy.get('[data-testid="result"]').should('be.visible') |
+| 等待请求 | 固定延迟等待请求：cy.wait(2000) | 拦截并等待：cy.intercept('/api/users').as('getUsers'); cy.wait('@getUsers') |
+| 点击元素 | 不等待元素就绪：cy.get('button').click() | 确保元素可交互：cy.get('button').should('be.enabled').click() |
+| 动画元素 | 强制点击：cy.get('.modal').click({force: true}) | 等待动画结束：cy.get('.modal').should('be.visible').and('have.css', 'opacity', '1') |
 
-    cy.getByTestId('loading-spinner').should('be.visible');
-    cy.wait('@getUsers');
-    cy.getByTestId('loading-spinner').should('not.exist');
-    cy.getByTestId('user-list').should('be.visible');
-  });
+### 测试组织和复用
 
-  it('should handle error state', () => {
-    cy.intercept('GET', '/api/users', {
-      statusCode: 500,
-      body: { error: 'Server error' },
-    }).as('getUsers');
+| 场景 | ❌ 不推荐做法 | ✅ 推荐做法 |
+|------|-------------|-----------|
+| 测试组织 | 所有测试放在一个 it 中，测试多个场景 | 每个 it 测试一个具体场景，使用 describe 分组 |
+| 登录操作 | 每个测试都重复登录步骤 | 封装为自定义命令：cy.login(username, password)，使用 cy.session 缓存 |
+| 重复代码 | 多个测试重复相同的选择器和操作 | 提取到自定义命令或 Page Object |
+| 测试数据 | 测试中硬编码测试数据 | 使用 cy.fixture 加载测试数据 |
+| 测试独立性 | 测试依赖前一个测试的状态 | 每个测试独立准备数据，使用 beforeEach |
 
-    cy.login('admin', 'admin123');
-    cy.visit('/users');
+### API 和网络
 
-    cy.wait('@getUsers');
-    cy.getByTestId('error-message')
-      .should('be.visible')
-      .and('contain', 'Failed to load');
-    cy.getByTestId('retry-btn').should('be.visible');
-  });
+| 场景 | ❌ 不推荐做法 | ✅ 推荐做法 |
+|------|-------------|-----------|
+| API Mock | 不 Mock，依赖真实后端服务 | Mock 不稳定的第三方服务和特定错误场景 |
+| Mock 数据 | Mock 返回最简数据 | Mock 数据结构贴近真实，包含完整字段 |
+| 请求验证 | 不验证请求参数 | 使用 cy.intercept 验证请求 URL、方法、参数 |
+| 多个请求 | 等待固定时间确保所有请求完成 | 为每个关键请求设置别名并分别等待 |
+| 网络错误 | 不测试网络异常情况 | Mock 网络错误和超时场景，验证错误处理 |
 
-  it('should retry on failure', () => {
-    let requestCount = 0;
-    cy.intercept('GET', '/api/users', (req) => {
-      requestCount++;
-      if (requestCount < 2) {
-        req.reply({ statusCode: 500 });
-      } else {
-        req.reply({ fixture: 'users.json' });
-      }
-    }).as('getUsers');
+### 断言和验证
 
-    cy.login('admin', 'admin123');
-    cy.visit('/users');
+| 场景 | ❌ 不推荐做法 | ✅ 推荐做法 |
+|------|-------------|-----------|
+| 元素存在 | 只检查元素存在：cy.get('.message').should('exist') | 检查可见性和内容：cy.get('[data-testid="message"]').should('be.visible').and('contain', '成功') |
+| 列表验证 | 只验证列表有内容：cy.get('.list-item').should('have.length.gt', 0) | 验证具体数量和内容：cy.get('[data-testid="list-item"]').should('have.length', 5).first().should('contain', '项目1') |
+| URL 验证 | 使用 contains：cy.url().should('contain', '/dashboard') | 使用精确匹配或正则：cy.url().should('eq', 'http://localhost/dashboard') |
+| 表单验证 | 不验证表单提交结果 | 验证提交后的 UI 反馈和 API 调用 |
+| 错误消息 | 只检查有错误：cy.contains('错误') | 检查具体错误内容和位置：cy.get('[data-testid="error"]').should('contain', '用户名已存在') |
 
-    cy.wait('@getUsers');
-    cy.getByTestId('retry-btn').click();
-    cy.wait('@getUsers');
-    cy.getByTestId('user-list').should('be.visible');
-  });
-});
+## 验证清单
+
+### 测试编写清单
+
+- [ ] **测试结构**
+  - 使用清晰的 describe 和 it 描述测试意图
+  - 每个 it 只测试一个场景
+  - 测试名称描述用户行为和期望结果
+  - 使用 beforeEach 准备共享状态
+
+- [ ] **选择器和等待**
+  - 使用 data-testid 或语义化选择器
+  - 使用 Cypress 自动重试机制，避免固定 wait
+  - 使用 should 断言等待元素状态
+  - 等待关键 API 请求完成
+
+- [ ] **断言和验证**
+  - 验证用户可见的结果，而非内部状态
+  - 断言充分但不过度
+  - 验证成功和失败路径
+  - 验证用户反馈（提示、错误消息）
+
+- [ ] **数据和状态**
+  - 每个测试独立准备数据
+  - 测试结束后清理数据（如需要）
+  - 使用 fixture 管理测试数据
+  - 避免测试之间共享状态
+
+### 测试稳定性清单
+
+- [ ] **消除 Flaky 因素**
+  - 不使用固定的 cy.wait(时间)
+  - 正确处理异步操作和动画
+  - Mock 不可控的外部依赖
+  - 测试不依赖执行顺序
+
+- [ ] **错误处理**
+  - 测试网络错误场景
+  - 测试超时和重试机制
+  - 测试边界情况（空数据、最大值）
+  - 测试并发操作
+
+- [ ] **性能优化**
+  - Mock 慢速第三方服务
+  - 合理设置 timeout 时间
+  - 使用 cy.session 缓存登录状态
+  - 并行运行独立测试（CI 环境）
+
+### CI/CD 集成清单
+
+- [ ] **CI 配置**
+  - 测试在 CI 中自动运行
+  - 配置合理的超时时间
+  - 失败时截图和视频记录
+  - 测试报告清晰可读
+
+- [ ] **环境配置**
+  - 测试环境稳定可用
+  - 环境变量正确配置
+  - 测试数据准备自动化
+  - 浏览器版本固定
+
+- [ ] **质量门槛**
+  - E2E 测试通过才能合并
+  - 测试成功率阈值设定（如 > 98%）
+  - 失败测试及时修复
+  - 定期审查和清理过时测试
+
+## 护栏约束
+
+### 必须遵守的约束
+
+1. **测试稳定性要求**
+   - E2E 测试成功率必须 > 95%
+   - Flaky 测试必须立即修复或禁用
+   - 不允许使用固定时间的 cy.wait
+   - 测试必须可重复运行
+
+2. **测试覆盖范围**
+   - 必须覆盖所有 P0 关键业务路径
+   - 每个关键用户流程至少一个 E2E 测试
+   - 不追求功能全覆盖，聚焦核心路径
+   - E2E 测试占总测试比例 < 20%
+
+3. **性能要求**
+   - 单个测试运行时间 < 2 分钟
+   - 完整测试套件 < 10 分钟（可并行）
+   - 合理使用 Mock 提升速度
+   - 优化不必要的等待和操作
+
+4. **代码质量**
+   - 测试代码需要 Code Review
+   - 使用 TypeScript 编写测试
+   - 提取重复代码到自定义命令
+   - 测试代码清晰易懂
+
+### 禁止的做法
+
+1. **禁止不稳定的测试**
+   - 使用固定时间 cy.wait 代替条件等待
+   - 依赖测试执行顺序
+   - 依赖不稳定的外部服务
+   - 使用脆弱的选择器（类名、结构）
+
+2. **禁止过度测试**
+   - 用 E2E 测试所有边界情况
+   - 测试纯 UI 样式细节
+   - 重复单元测试已覆盖的逻辑
+   - 测试第三方库功能
+
+3. **禁止不当操作**
+   - 使用 {force: true} 绕过问题而非解决
+   - 直接操作 DOM 或调用应用代码
+   - 在测试间共享状态和数据
+   - 硬编码敏感信息（密码、token）
+
+## 常见问题诊断表
+
+| 症状 | 可能原因 | 诊断方法 | 解决方案 |
+|------|---------|---------|---------|
+| 元素未找到错误 | 选择器错误或元素未加载 | 检查选择器是否正确，元素是否渲染 | 修正选择器，添加等待或 should 断言 |
+| | 异步加载未完成 | 查看是否有 API 请求未完成 | 使用 cy.intercept + cy.wait 等待请求 |
+| 超时错误 | API 请求慢或卡住 | 检查 Network 面板，查看请求状态 | Mock 慢速 API，或增加 timeout |
+| | 元素始终不出现 | 确认元素是否真的会渲染 | 检查测试逻辑，确保前置条件满足 |
+| | 动画或过渡时间长 | 查看是否有 CSS 动画 | 等待动画结束状态，或禁用动画 |
+| 点击无效 | 元素被遮挡 | 检查是否有 Modal、Overlay 遮挡 | 等待遮挡元素消失，或使用 scrollIntoView |
+| | 元素未启用 | 查看元素是否 disabled | 等待元素启用：should('be.enabled') |
+| 测试随机失败 | 时序问题或竞态条件 | 多次运行测试，查看失败模式 | 添加适当等待，确保操作顺序 |
+| | 数据污染 | 检查是否有数据残留 | 确保测试数据隔离和清理 |
+| | 外部服务不稳定 | 查看是否依赖外部 API | Mock 不稳定的外部依赖 |
+| 断言失败 | 实际结果与预期不符 | 查看错误消息和截图 | 修正断言或修复代码 |
+| | 时序问题 | 检查是否过早断言 | 添加等待，确保状态稳定后断言 |
+| 测试过慢 | 过多固定等待 | 查看测试日志，统计等待时间 | 替换为条件等待 |
+| | 未 Mock 慢速服务 | 检查网络请求耗时 | Mock 第三方服务和慢速 API |
+
+## 输出格式要求
+
+### E2E 测试用例格式
+
+```markdown
+# [功能模块] E2E 测试
+
+## 测试文件：[文件路径]
+
+### 测试套件：[用户流程名称]
+
+#### 测试用例 1：成功完成 [流程名称]
+
+**用户故事**：
+作为 [用户角色]，我想要 [完成的目标]，以便 [获得的价值]
+
+**前置条件**：
+- 用户状态：[已登录/未登录]
+- 测试数据：[需要准备的数据]
+- 页面状态：[起始页面]
+
+**测试步骤**：
+1. 访问 [页面 URL]
+2. 填写 [表单字段]：[具体内容]
+3. 点击 [按钮名称]
+4. 等待 [加载或跳转]
+5. 验证 [结果]
+
+**预期结果**：
+- 页面跳转到 [目标页面]
+- 显示成功消息："[消息内容]"
+- 数据正确保存
+- 用户可以看到 [新状态]
+
+**关键断言**：
+- cy.url 应包含 [URL 片段]
+- 成功消息应可见且包含文本
+- [关键元素] 应显示正确数据
+- API 请求应发送正确参数
+
+**Mock 策略**：
+- Mock 的服务：[第三方服务名称]
+- Mock 原因：[避免实际调用/提升稳定性]
+- Mock 响应：[返回数据说明]
+
+#### 测试用例 2：处理 [错误场景]
+[同上格式]
 ```
 
-### 组件测试
+### Cypress 配置文档格式
 
-```typescript
-// src/components/Button/Button.cy.tsx
-import { Button } from './Button';
+```markdown
+# Cypress 配置说明
 
-describe('Button', () => {
-  it('renders with text', () => {
-    cy.mount(<Button>Click me</Button>);
-    cy.get('button').should('contain', 'Click me');
-  });
+## 基础配置
 
-  it('handles click events', () => {
-    const onClick = cy.stub().as('clickHandler');
-    cy.mount(<Button onClick={onClick}>Click me</Button>);
+### cypress.config.ts 核心配置项
 
-    cy.get('button').click();
-    cy.get('@clickHandler').should('have.been.calledOnce');
-  });
+- **baseUrl**：应用基础 URL，本地开发或 CI 环境
+- **viewportWidth/Height**：默认视口大小，模拟目标设备
+- **defaultCommandTimeout**：默认命令超时时间
+- **requestTimeout**：网络请求超时时间
 
-  it('can be disabled', () => {
-    const onClick = cy.stub().as('clickHandler');
-    cy.mount(<Button disabled onClick={onClick}>Disabled</Button>);
+### 环境变量
 
-    cy.get('button')
-      .should('be.disabled')
-      .click({ force: true });
-    cy.get('@clickHandler').should('not.have.been.called');
-  });
+- **apiUrl**：后端 API 地址
+- **testUser**：测试用户凭证（从环境变量读取）
 
-  it('shows loading state', () => {
-    cy.mount(<Button loading>Loading</Button>);
+## 自定义命令
 
-    cy.get('button').should('be.disabled');
-    cy.get('[data-testid="spinner"]').should('be.visible');
-  });
+### cy.login(username, password)
+描述：用户登录并缓存会话
 
-  it('renders different variants', () => {
-    cy.mount(<Button variant="primary">Primary</Button>);
-    cy.get('button').should('have.class', 'bg-blue-500');
+实现要点：
+- 使用 cy.session 缓存登录状态
+- 避免重复登录提升速度
+- 验证登录成功标志
 
-    cy.mount(<Button variant="danger">Danger</Button>);
-    cy.get('button').should('have.class', 'bg-red-500');
-  });
-});
+使用场景：需要登录状态的测试
+
+### cy.getByTestId(id)
+描述：通过 data-testid 选择元素
+
+实现要点：
+- 统一选择器前缀
+- 返回 Cypress 链式对象
+
+使用场景：所有元素选择
+
+### cy.mockApi(fixture)
+描述：Mock API 响应
+
+实现要点：
+- 使用 cy.intercept 拦截请求
+- 从 fixture 加载响应数据
+- 返回别名供 cy.wait 使用
+
+使用场景：需要稳定 API 响应的测试
+
+## 测试组织结构
+
+目录结构：
+- cypress/e2e/auth/：身份认证相关测试
+- cypress/e2e/order/：订单流程测试
+- cypress/support/commands.ts：自定义命令
+- cypress/fixtures/：测试数据
+
+## CI/CD 集成
+
+GitHub Actions 配置要点：
+- 使用官方 Cypress GitHub Action
+- 配置并行执行（如需要）
+- 上传失败截图和视频
+- 设置合理超时时间
+
+测试触发时机：
+- Pull Request 提交时
+- 合并到主分支时
+- 定时回归测试（每日）
 ```
 
-### 表单组件测试
+### 测试稳定性报告格式
 
-```typescript
-// src/components/Form/LoginForm.cy.tsx
-import { LoginForm } from './LoginForm';
+```markdown
+# Cypress 测试稳定性报告
 
-describe('LoginForm', () => {
-  it('validates required fields', () => {
-    const onSubmit = cy.stub().as('submit');
-    cy.mount(<LoginForm onSubmit={onSubmit} />);
+## 概述
+- 统计周期：[日期范围]
+- 总测试数：[数量]
+- 总运行次数：[次数]
+- 平均成功率：[百分比]
 
-    cy.get('button[type="submit"]').click();
+## Flaky 测试列表
 
-    cy.get('[data-testid="username-error"]')
-      .should('be.visible')
-      .and('contain', 'Username is required');
-    cy.get('[data-testid="password-error"]')
-      .should('be.visible')
-      .and('contain', 'Password is required');
-    cy.get('@submit').should('not.have.been.called');
-  });
+### 1. [测试名称] - 成功率 [百分比]
 
-  it('validates password length', () => {
-    cy.mount(<LoginForm onSubmit={cy.stub()} />);
+**测试路径**：[文件路径]
 
-    cy.get('[data-testid="username"]').type('user');
-    cy.get('[data-testid="password"]').type('123');
-    cy.get('button[type="submit"]').click();
+**失败模式**：
+- 主要错误：[错误类型和消息]
+- 失败频率：[X次/总运行次数]
+- 失败环境：[本地/CI，浏览器]
 
-    cy.get('[data-testid="password-error"]')
-      .should('contain', 'at least 6 characters');
-  });
+**根因分析**：
+[描述导致不稳定的原因]
 
-  it('submits valid form', () => {
-    const onSubmit = cy.stub().as('submit');
-    cy.mount(<LoginForm onSubmit={onSubmit} />);
+**建议修复方案**：
+1. [方案一]：[描述和预期效果]
+2. [方案二]：[备选方案]
 
-    cy.get('[data-testid="username"]').type('testuser');
-    cy.get('[data-testid="password"]').type('password123');
-    cy.get('button[type="submit"]').click();
+**优先级**：[P0/P1/P2]
 
-    cy.get('@submit').should('have.been.calledWith', {
-      username: 'testuser',
-      password: 'password123',
-    });
-  });
-});
+### 2. [下一个 Flaky 测试]
+[同上格式]
+
+## 稳定性改进建议
+
+1. **全局优化**
+   - 统一等待策略，避免固定 wait
+   - Mock 所有第三方服务
+   - 增加关键操作的重试机制
+
+2. **CI 环境优化**
+   - 固定浏览器版本
+   - 增加资源配置
+   - 优化网络条件模拟
+
+## 下一步行动
+
+- [ ] 修复 P0 Flaky 测试 - 负责人：[XX]，截止日期：[日期]
+- [ ] 优化全局等待策略 - 负责人：[XX]，截止日期：[日期]
+- [ ] 建立测试稳定性监控 - 负责人：[XX]，截止日期：[日期]
 ```
 
-### Fixture 数据
+## 参考资源
 
-```json
-// cypress/fixtures/users.json
-{
-  "users": [
-    { "id": 1, "name": "John Doe", "email": "john@example.com" },
-    { "id": 2, "name": "Jane Smith", "email": "jane@example.com" }
-  ],
-  "total": 2
-}
-```
-
-### CI 配置
-
-```yaml
-# .github/workflows/e2e.yml
-name: E2E Tests
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-jobs:
-  cypress:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Cypress run
-        uses: cypress-io/github-action@v6
-        with:
-          build: npm run build
-          start: npm run preview
-          wait-on: 'http://localhost:4173'
-          browser: chrome
-          record: true
-        env:
-          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
-
-      - name: Upload screenshots
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: cypress-screenshots
-          path: cypress/screenshots
-
-      - name: Upload videos
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: cypress-videos
-          path: cypress/videos
-```
-
-## 最佳实践清单
-
-- [ ] 使用 data-testid 选择器
-- [ ] 封装自定义命令
-- [ ] 使用 cy.session() 复用登录
-- [ ] Mock API 请求
-- [ ] 使用 Fixture 管理测试数据
-- [ ] 配置 CI 自动化测试
-- [ ] 截图和视频记录
-- [ ] 合理设置超时时间
+- Cypress 官方文档：https://docs.cypress.io/
+- Cypress 最佳实践：https://docs.cypress.io/guides/references/best-practices
+- Cypress Real World App：https://github.com/cypress-io/cypress-realworld-app
+- Cypress Testing Library：https://testing-library.com/docs/cypress-testing-library/intro
