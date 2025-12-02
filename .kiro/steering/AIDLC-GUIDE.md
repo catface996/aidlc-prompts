@@ -237,14 +237,14 @@
 
 | 角色编号 | 角色名称 | 文档路径 |
 |---------|---------|---------|
-| 1 | 产品经理 | `02-role/01-product-manager/README.md` |
-| 2 | 需求分析师 | `02-role/02-requirement-analyst/README.md` |
-| 3 | 架构师 | `02-role/03-architect/README.md` |
-| 4 | 项目经理 | `02-role/04-project-manager/README.md` |
-| 5 | 前端工程师 | `02-role/05-frontend-engineer/README.md` |
-| 6 | 后端工程师 | `02-role/06-backend-engineer/README.md` |
-| 7 | 测试工程师 | `02-role/07-test-engineer/README.md` |
-| 8 | DevOps工程师 | `02-role/08-devops-engineer/README.md` |
+| 1 | 产品经理 | `02-role/01-product-manager/README.zh.md` |
+| 2 | 需求分析师 | `02-role/02-requirement-analyst/README.zh.md` |
+| 3 | 架构师 | `02-role/03-architect/README.zh.md` |
+| 4 | 项目经理 | `02-role/04-project-manager/README.zh.md` |
+| 5 | 前端工程师 | `02-role/05-frontend-engineer/README.zh.md` |
+| 6 | 后端工程师 | `02-role/06-backend-engineer/README.zh.md` |
+| 7 | 测试工程师 | `02-role/07-test-engineer/README.zh.md` |
+| 8 | DevOps工程师 | `02-role/08-devops-engineer/README.zh.md` |
 
 ### DLC 阶段文档映射
 
@@ -262,58 +262,58 @@
 
 | 技术 | 文档路径 |
 |------|---------|
-| Java | `04-tech/02-backend/01-java/README.md` |
-| Spring Boot | `04-tech/02-backend/02-spring-boot/README.md` |
-| Spring Cloud | `04-tech/02-backend/03-spring-cloud/README.md` |
-| MyBatis | `04-tech/02-backend/04-mybatis/README.md` |
-| MySQL | `04-tech/02-backend/05-mysql/README.md` |
-| Redis | `04-tech/02-backend/06-redis/README.md` |
-| RocketMQ | `04-tech/02-backend/07-rocketmq/README.md` |
-| Kafka | `04-tech/02-backend/08-kafka/README.md` |
-| Elasticsearch | `04-tech/02-backend/09-elasticsearch/README.md` |
-| Nacos | `04-tech/02-backend/10-nacos/README.md` |
-| Sentinel | `04-tech/02-backend/11-sentinel/README.md` |
-| Seata | `04-tech/02-backend/12-seata/README.md` |
-| SkyWalking | `04-tech/02-backend/13-skywalking/README.md` |
-| Docker | `04-tech/02-backend/14-docker/README.md` |
-| Kubernetes | `04-tech/02-backend/15-kubernetes/README.md` |
-| Nginx | `04-tech/02-backend/16-nginx/README.md` |
-| Gateway | `04-tech/02-backend/17-gateway/README.md` |
-| Security | `04-tech/02-backend/18-security/README.md` |
-| Logging | `04-tech/02-backend/19-logging/README.md` |
-| Monitoring | `04-tech/02-backend/20-monitoring/README.md` |
+| Java | `04-tech/02-backend/01-java/README.zh.md` |
+| Spring Boot | `04-tech/02-backend/02-spring-boot/README.zh.md` |
+| Spring Cloud | `04-tech/02-backend/03-spring-cloud/README.zh.md` |
+| MyBatis | `04-tech/02-backend/04-mybatis/README.zh.md` |
+| MySQL | `04-tech/02-backend/05-mysql/README.zh.md` |
+| Redis | `04-tech/02-backend/06-redis/README.zh.md` |
+| RocketMQ | `04-tech/02-backend/07-rocketmq/README.zh.md` |
+| Kafka | `04-tech/02-backend/08-kafka/README.zh.md` |
+| Elasticsearch | `04-tech/02-backend/09-elasticsearch/README.zh.md` |
+| Nacos | `04-tech/02-backend/10-nacos/README.zh.md` |
+| Sentinel | `04-tech/02-backend/11-sentinel/README.zh.md` |
+| Seata | `04-tech/02-backend/12-seata/README.zh.md` |
+| SkyWalking | `04-tech/02-backend/13-skywalking/README.zh.md` |
+| Docker | `04-tech/02-backend/14-docker/README.zh.md` |
+| Kubernetes | `04-tech/02-backend/15-kubernetes/README.zh.md` |
+| Nginx | `04-tech/02-backend/16-nginx/README.zh.md` |
+| Gateway | `04-tech/02-backend/17-gateway/README.zh.md` |
+| Security | `04-tech/02-backend/18-security/README.zh.md` |
+| Logging | `04-tech/02-backend/19-logging/README.zh.md` |
+| Monitoring | `04-tech/02-backend/20-monitoring/README.zh.md` |
 
 #### 前端技术栈
 
 | 技术 | 文档路径 |
 |------|---------|
-| HTML | `04-tech/01-frontend/01-html/README.md` |
-| CSS | `04-tech/01-frontend/02-css/README.md` |
-| JavaScript | `04-tech/01-frontend/03-javascript/README.md` |
-| TypeScript | `04-tech/01-frontend/04-typescript/README.md` |
-| React | `04-tech/01-frontend/05-react/README.md` |
-| Vue | `04-tech/01-frontend/06-vue/README.md` |
-| Angular | `04-tech/01-frontend/07-angular/README.md` |
-| Next.js | `04-tech/01-frontend/09-nextjs/README.md` |
-| Webpack | `04-tech/01-frontend/11-webpack/README.md` |
-| Vite | `04-tech/01-frontend/12-vite/README.md` |
-| Tailwind CSS | `04-tech/01-frontend/24-tailwindcss/README.md` |
-| Cypress | `04-tech/01-frontend/23-cypress/README.md` |
+| HTML | `04-tech/01-frontend/01-html/README.zh.md` |
+| CSS | `04-tech/01-frontend/02-css/README.zh.md` |
+| JavaScript | `04-tech/01-frontend/03-javascript/README.zh.md` |
+| TypeScript | `04-tech/01-frontend/04-typescript/README.zh.md` |
+| React | `04-tech/01-frontend/05-react/README.zh.md` |
+| Vue | `04-tech/01-frontend/06-vue/README.zh.md` |
+| Angular | `04-tech/01-frontend/07-angular/README.zh.md` |
+| Next.js | `04-tech/01-frontend/09-nextjs/README.zh.md` |
+| Webpack | `04-tech/01-frontend/11-webpack/README.zh.md` |
+| Vite | `04-tech/01-frontend/12-vite/README.zh.md` |
+| Tailwind CSS | `04-tech/01-frontend/24-tailwindcss/README.zh.md` |
+| Cypress | `04-tech/01-frontend/23-cypress/README.zh.md` |
 
 #### 测试相关
 
 | 技术 | 文档路径 |
 |------|---------|
-| 测试总览 | `03-dlc/04-testing/README.md` |
-| 需求静态测试 | `03-dlc/04-testing/00-static-review/README.md` |
-| 单元测试 | `03-dlc/04-testing/01-unit/README.md` |
-| 集成测试 | `03-dlc/04-testing/02-integration/README.md` |
-| E2E 测试 | `03-dlc/04-testing/03-e2e/README.md` |
-| API 测试 | `03-dlc/04-testing/04-api/README.md` |
-| 性能测试 | `03-dlc/04-testing/05-performance/README.md` |
-| 安全测试 | `03-dlc/04-testing/06-security/README.md` |
-| 兼容性测试 | `03-dlc/04-testing/07-compatibility/README.md` |
-| 回归测试 | `03-dlc/04-testing/08-regression/README.md` |
+| 测试总览 | `03-dlc/04-testing/README.zh.md` |
+| 需求静态测试 | `03-dlc/04-testing/00-static-review/README.zh.md` |
+| 单元测试 | `03-dlc/04-testing/01-unit/README.zh.md` |
+| 集成测试 | `03-dlc/04-testing/02-integration/README.zh.md` |
+| E2E 测试 | `03-dlc/04-testing/03-e2e/README.zh.md` |
+| API 测试 | `03-dlc/04-testing/04-api/README.zh.md` |
+| 性能测试 | `03-dlc/04-testing/05-performance/README.zh.md` |
+| 安全测试 | `03-dlc/04-testing/06-security/README.zh.md` |
+| 兼容性测试 | `03-dlc/04-testing/07-compatibility/README.zh.md` |
+| 回归测试 | `03-dlc/04-testing/08-regression/README.zh.md` |
 
 ---
 

@@ -13,6 +13,8 @@ AIDLC Prompts 是一个结构化的提示词库，旨在通过 AI 协助提升�
 - **技术栈**：47+ 种前后端技术的最佳实践规范
 - **测试体系**：9 种测试类型的完整指南
 
+所有文档均提供中英文双语版本（.zh.md / .en.md）。
+
 ---
 
 ## 目录结构
@@ -40,16 +42,16 @@ aidlc-prompts/
 
 ## 角色定义 (02-role)
 
-| 编号 | 角色 | 文档链接 |
-|------|------|----------|
-| 01 | 产品经理 | [README.md](./02-role/01-product-manager/README.md) |
-| 02 | 需求分析师 | [README.md](./02-role/02-requirement-analyst/README.md) |
-| 03 | 架构师 | [README.md](./02-role/03-architect/README.md) |
-| 04 | 项目经理 | [README.md](./02-role/04-project-manager/README.md) |
-| 05 | 前端工程师 | [README.md](./02-role/05-frontend-engineer/README.md) |
-| 06 | 后端工程师 | [README.md](./02-role/06-backend-engineer/README.md) |
-| 07 | 测试工程师 | [README.md](./02-role/07-test-engineer/README.md) |
-| 08 | DevOps 工程师 | [README.md](./02-role/08-devops-engineer/README.md) |
+| 编号 | 角色 | 中文 | English |
+|------|------|------|---------|
+| 01 | 产品经理 | [README.zh.md](./02-role/01-product-manager/README.zh.md) | [README.en.md](./02-role/01-product-manager/README.en.md) |
+| 02 | 需求分析师 | [README.zh.md](./02-role/02-requirement-analyst/README.zh.md) | [README.en.md](./02-role/02-requirement-analyst/README.en.md) |
+| 03 | 架构师 | [README.zh.md](./02-role/03-architect/README.zh.md) | [README.en.md](./02-role/03-architect/README.en.md) |
+| 04 | 项目经理 | [README.zh.md](./02-role/04-project-manager/README.zh.md) | [README.en.md](./02-role/04-project-manager/README.en.md) |
+| 05 | 前端工程师 | [README.zh.md](./02-role/05-frontend-engineer/README.zh.md) | [README.en.md](./02-role/05-frontend-engineer/README.en.md) |
+| 06 | 后端工程师 | [README.zh.md](./02-role/06-backend-engineer/README.zh.md) | [README.en.md](./02-role/06-backend-engineer/README.en.md) |
+| 07 | 测试工程师 | [README.zh.md](./02-role/07-test-engineer/README.zh.md) | [README.en.md](./02-role/07-test-engineer/README.en.md) |
+| 08 | DevOps 工程师 | [README.zh.md](./02-role/08-devops-engineer/README.zh.md) | [README.en.md](./02-role/08-devops-engineer/README.en.md) |
 
 ---
 
@@ -57,41 +59,37 @@ aidlc-prompts/
 
 ### 需求阶段
 
-| 文档 | 链接 |
-|------|------|
-| 需求最佳实践 (中文) | [01-requirements-best-practices.zh.md](./03-dlc/01-requirements/01-requirements-best-practices.zh.md) |
-| 需求最佳实践 (英文) | [01-requirements-best-practices.en.md](./03-dlc/01-requirements/01-requirements-best-practices.en.md) |
+| 文档 | 中文 | English |
+|------|------|---------|
+| 需求最佳实践 | [.zh.md](./03-dlc/01-requirements/01-requirements-best-practices.zh.md) | [.en.md](./03-dlc/01-requirements/01-requirements-best-practices.en.md) |
 
 ### 设计阶段
 
-| 文档 | 链接 |
-|------|------|
-| 设计最佳实践 (中文) | [02-design-best-practices.zh.md](./03-dlc/02-design/02-design-best-practices.zh.md) |
-| 设计最佳实践 (英文) | [02-design-best-practices.en.md](./03-dlc/02-design/02-design-best-practices.en.md) |
+| 文档 | 中文 | English |
+|------|------|---------|
+| 设计最佳实践 | [.zh.md](./03-dlc/02-design/02-design-best-practices.zh.md) | [.en.md](./03-dlc/02-design/02-design-best-practices.en.md) |
 
 ### 任务阶段
 
-| 文档 | 链接 |
-|------|------|
-| 任务规划最佳实践 (中文) | [03-tasks-planning-best-practices.zh.md](./03-dlc/03-task/03-tasks-planning-best-practices.zh.md) |
-| 任务规划最佳实践 (英文) | [03-tasks-planning-best-practices.en.md](./03-dlc/03-task/03-tasks-planning-best-practices.en.md) |
-| 任务执行最佳实践 (中文) | [04-tasks-execution-best-practices.zh.md](./03-dlc/03-task/04-tasks-execution-best-practices.zh.md) |
-| 任务执行最佳实践 (英文) | [04-tasks-execution-best-practices.en.md](./03-dlc/03-task/04-tasks-execution-best-practices.en.md) |
+| 文档 | 中文 | English |
+|------|------|---------|
+| 任务规划最佳实践 | [.zh.md](./03-dlc/03-task/03-tasks-planning-best-practices.zh.md) | [.en.md](./03-dlc/03-task/03-tasks-planning-best-practices.en.md) |
+| 任务执行最佳实践 | [.zh.md](./03-dlc/03-task/04-tasks-execution-best-practices.zh.md) | [.en.md](./03-dlc/03-task/04-tasks-execution-best-practices.en.md) |
 
 ### 测试阶段
 
-| 编号 | 测试类型 | 链接 |
-|------|----------|------|
-| - | 测试总览 | [README.md](./03-dlc/04-testing/README.md) |
-| 00 | 需求静态测试 | [README.md](./03-dlc/04-testing/00-static-review/README.md) |
-| 01 | 单元测试 | [README.md](./03-dlc/04-testing/01-unit/README.md) |
-| 02 | 集成测试 | [README.md](./03-dlc/04-testing/02-integration/README.md) |
-| 03 | E2E 测试 | [README.md](./03-dlc/04-testing/03-e2e/README.md) |
-| 04 | API 测试 | [README.md](./03-dlc/04-testing/04-api/README.md) |
-| 05 | 性能测试 | [README.md](./03-dlc/04-testing/05-performance/README.md) |
-| 06 | 安全测试 | [README.md](./03-dlc/04-testing/06-security/README.md) |
-| 07 | 兼容性测试 | [README.md](./03-dlc/04-testing/07-compatibility/README.md) |
-| 08 | 回归测试 | [README.md](./03-dlc/04-testing/08-regression/README.md) |
+| 编号 | 测试类型 | 中文 | English |
+|------|----------|------|---------|
+| - | 测试总览 | [README.zh.md](./03-dlc/04-testing/README.zh.md) | [README.en.md](./03-dlc/04-testing/README.en.md) |
+| 00 | 需求静态测试 | [README.zh.md](./03-dlc/04-testing/00-static-review/README.zh.md) | [README.en.md](./03-dlc/04-testing/00-static-review/README.en.md) |
+| 01 | 单元测试 | [README.zh.md](./03-dlc/04-testing/01-unit/README.zh.md) | [README.en.md](./03-dlc/04-testing/01-unit/README.en.md) |
+| 02 | 集成测试 | [README.zh.md](./03-dlc/04-testing/02-integration/README.zh.md) | [README.en.md](./03-dlc/04-testing/02-integration/README.en.md) |
+| 03 | E2E 测试 | [README.zh.md](./03-dlc/04-testing/03-e2e/README.zh.md) | [README.en.md](./03-dlc/04-testing/03-e2e/README.en.md) |
+| 04 | API 测试 | [README.zh.md](./03-dlc/04-testing/04-api/README.zh.md) | [README.en.md](./03-dlc/04-testing/04-api/README.en.md) |
+| 05 | 性能测试 | [README.zh.md](./03-dlc/04-testing/05-performance/README.zh.md) | [README.en.md](./03-dlc/04-testing/05-performance/README.en.md) |
+| 06 | 安全测试 | [README.zh.md](./03-dlc/04-testing/06-security/README.zh.md) | [README.en.md](./03-dlc/04-testing/06-security/README.en.md) |
+| 07 | 兼容性测试 | [README.zh.md](./03-dlc/04-testing/07-compatibility/README.zh.md) | [README.en.md](./03-dlc/04-testing/07-compatibility/README.en.md) |
+| 08 | 回归测试 | [README.zh.md](./03-dlc/04-testing/08-regression/README.zh.md) | [README.en.md](./03-dlc/04-testing/08-regression/README.en.md) |
 
 ---
 
@@ -99,60 +97,60 @@ aidlc-prompts/
 
 ### 前端技术 (27 项)
 
-| 分类 | 技术 | 链接 |
-|------|------|------|
-| 基础 | HTML | [README.md](./04-tech/01-frontend/01-html/README.md) |
-| 基础 | CSS | [README.md](./04-tech/01-frontend/02-css/README.md) |
-| 基础 | JavaScript | [README.md](./04-tech/01-frontend/03-javascript/README.md) |
-| 基础 | TypeScript | [README.md](./04-tech/01-frontend/04-typescript/README.md) |
-| 框架 | React | [README.md](./04-tech/01-frontend/05-react/README.md) |
-| 框架 | Vue | [README.md](./04-tech/01-frontend/06-vue/README.md) |
-| 框架 | Angular | [README.md](./04-tech/01-frontend/07-angular/README.md) |
-| 框架 | Svelte | [README.md](./04-tech/01-frontend/08-svelte/README.md) |
-| 元框架 | Next.js | [README.md](./04-tech/01-frontend/09-nextjs/README.md) |
-| 元框架 | Nuxt.js | [README.md](./04-tech/01-frontend/10-nuxtjs/README.md) |
-| 构建工具 | Webpack | [README.md](./04-tech/01-frontend/11-webpack/README.md) |
-| 构建工具 | Vite | [README.md](./04-tech/01-frontend/12-vite/README.md) |
-| 工程化 | ESLint | [README.md](./04-tech/01-frontend/13-eslint/README.md) |
-| 工程化 | Husky | [README.md](./04-tech/01-frontend/14-husky/README.md) |
-| 网络通信 | Axios | [README.md](./04-tech/01-frontend/15-axios/README.md) |
-| 网络通信 | WebSocket | [README.md](./04-tech/01-frontend/16-websocket/README.md) |
-| 状态管理 | Zustand | [README.md](./04-tech/01-frontend/17-zustand/README.md) |
-| 路由 | React Router | [README.md](./04-tech/01-frontend/18-react-router/README.md) |
-| 认证 | JWT | [README.md](./04-tech/01-frontend/19-jwt/README.md) |
-| 性能 | Caching | [README.md](./04-tech/01-frontend/20-caching/README.md) |
-| 性能 | Performance | [README.md](./04-tech/01-frontend/21-performance/README.md) |
-| 测试 | Testing | [README.md](./04-tech/01-frontend/22-testing/README.md) |
-| 测试 | Cypress | [README.md](./04-tech/01-frontend/23-cypress/README.md) |
-| 样式 | Tailwind CSS | [README.md](./04-tech/01-frontend/24-tailwindcss/README.md) |
-| 动画 | Animation | [README.md](./04-tech/01-frontend/25-animation/README.md) |
-| 图形 | Canvas | [README.md](./04-tech/01-frontend/26-canvas/README.md) |
-| 国际化 | i18n | [README.md](./04-tech/01-frontend/27-i18n/README.md) |
+| 分类 | 技术 | 中文 | English |
+|------|------|------|---------|
+| 基础 | HTML | [README.zh.md](./04-tech/01-frontend/01-html/README.zh.md) | [README.en.md](./04-tech/01-frontend/01-html/README.en.md) |
+| 基础 | CSS | [README.zh.md](./04-tech/01-frontend/02-css/README.zh.md) | [README.en.md](./04-tech/01-frontend/02-css/README.en.md) |
+| 基础 | JavaScript | [README.zh.md](./04-tech/01-frontend/03-javascript/README.zh.md) | [README.en.md](./04-tech/01-frontend/03-javascript/README.en.md) |
+| 基础 | TypeScript | [README.zh.md](./04-tech/01-frontend/04-typescript/README.zh.md) | [README.en.md](./04-tech/01-frontend/04-typescript/README.en.md) |
+| 框架 | React | [README.zh.md](./04-tech/01-frontend/05-react/README.zh.md) | [README.en.md](./04-tech/01-frontend/05-react/README.en.md) |
+| 框架 | Vue | [README.zh.md](./04-tech/01-frontend/06-vue/README.zh.md) | [README.en.md](./04-tech/01-frontend/06-vue/README.en.md) |
+| 框架 | Angular | [README.zh.md](./04-tech/01-frontend/07-angular/README.zh.md) | [README.en.md](./04-tech/01-frontend/07-angular/README.en.md) |
+| 框架 | Svelte | [README.zh.md](./04-tech/01-frontend/08-svelte/README.zh.md) | [README.en.md](./04-tech/01-frontend/08-svelte/README.en.md) |
+| 元框架 | Next.js | [README.zh.md](./04-tech/01-frontend/09-nextjs/README.zh.md) | [README.en.md](./04-tech/01-frontend/09-nextjs/README.en.md) |
+| 元框架 | Nuxt.js | [README.zh.md](./04-tech/01-frontend/10-nuxtjs/README.zh.md) | [README.en.md](./04-tech/01-frontend/10-nuxtjs/README.en.md) |
+| 构建工具 | Webpack | [README.zh.md](./04-tech/01-frontend/11-webpack/README.zh.md) | [README.en.md](./04-tech/01-frontend/11-webpack/README.en.md) |
+| 构建工具 | Vite | [README.zh.md](./04-tech/01-frontend/12-vite/README.zh.md) | [README.en.md](./04-tech/01-frontend/12-vite/README.en.md) |
+| 工程化 | ESLint | [README.zh.md](./04-tech/01-frontend/13-eslint/README.zh.md) | [README.en.md](./04-tech/01-frontend/13-eslint/README.en.md) |
+| 工程化 | Husky | [README.zh.md](./04-tech/01-frontend/14-husky/README.zh.md) | [README.en.md](./04-tech/01-frontend/14-husky/README.en.md) |
+| 网络通信 | Axios | [README.zh.md](./04-tech/01-frontend/15-axios/README.zh.md) | [README.en.md](./04-tech/01-frontend/15-axios/README.en.md) |
+| 网络通信 | WebSocket | [README.zh.md](./04-tech/01-frontend/16-websocket/README.zh.md) | [README.en.md](./04-tech/01-frontend/16-websocket/README.en.md) |
+| 状态管理 | Zustand | [README.zh.md](./04-tech/01-frontend/17-zustand/README.zh.md) | [README.en.md](./04-tech/01-frontend/17-zustand/README.en.md) |
+| 路由 | React Router | [README.zh.md](./04-tech/01-frontend/18-react-router/README.zh.md) | [README.en.md](./04-tech/01-frontend/18-react-router/README.en.md) |
+| 认证 | JWT | [README.zh.md](./04-tech/01-frontend/19-jwt/README.zh.md) | [README.en.md](./04-tech/01-frontend/19-jwt/README.en.md) |
+| 性能 | Caching | [README.zh.md](./04-tech/01-frontend/20-caching/README.zh.md) | [README.en.md](./04-tech/01-frontend/20-caching/README.en.md) |
+| 性能 | Performance | [README.zh.md](./04-tech/01-frontend/21-performance/README.zh.md) | [README.en.md](./04-tech/01-frontend/21-performance/README.en.md) |
+| 测试 | Testing | [README.zh.md](./04-tech/01-frontend/22-testing/README.zh.md) | [README.en.md](./04-tech/01-frontend/22-testing/README.en.md) |
+| 测试 | Cypress | [README.zh.md](./04-tech/01-frontend/23-cypress/README.zh.md) | [README.en.md](./04-tech/01-frontend/23-cypress/README.en.md) |
+| 样式 | Tailwind CSS | [README.zh.md](./04-tech/01-frontend/24-tailwindcss/README.zh.md) | [README.en.md](./04-tech/01-frontend/24-tailwindcss/README.en.md) |
+| 动画 | Animation | [README.zh.md](./04-tech/01-frontend/25-animation/README.zh.md) | [README.en.md](./04-tech/01-frontend/25-animation/README.en.md) |
+| 图形 | Canvas | [README.zh.md](./04-tech/01-frontend/26-canvas/README.zh.md) | [README.en.md](./04-tech/01-frontend/26-canvas/README.en.md) |
+| 国际化 | i18n | [README.zh.md](./04-tech/01-frontend/27-i18n/README.zh.md) | [README.en.md](./04-tech/01-frontend/27-i18n/README.en.md) |
 
 ### 后端技术 (20 项)
 
-| 分类 | 技术 | 链接 |
-|------|------|------|
-| 语言 | Java | [README.md](./04-tech/02-backend/01-java/README.md) |
-| 框架 | Spring Boot | [README.md](./04-tech/02-backend/02-spring-boot/README.md) |
-| 框架 | Spring Cloud | [README.md](./04-tech/02-backend/03-spring-cloud/README.md) |
-| ORM | MyBatis | [README.md](./04-tech/02-backend/04-mybatis/README.md) |
-| 数据库 | MySQL | [README.md](./04-tech/02-backend/05-mysql/README.md) |
-| 缓存 | Redis | [README.md](./04-tech/02-backend/06-redis/README.md) |
-| 消息队列 | RocketMQ | [README.md](./04-tech/02-backend/07-rocketmq/README.md) |
-| 消息队列 | Kafka | [README.md](./04-tech/02-backend/08-kafka/README.md) |
-| 搜索 | Elasticsearch | [README.md](./04-tech/02-backend/09-elasticsearch/README.md) |
-| 微服务 | Nacos | [README.md](./04-tech/02-backend/10-nacos/README.md) |
-| 微服务 | Sentinel | [README.md](./04-tech/02-backend/11-sentinel/README.md) |
-| 微服务 | Seata | [README.md](./04-tech/02-backend/12-seata/README.md) |
-| 可观测性 | SkyWalking | [README.md](./04-tech/02-backend/13-skywalking/README.md) |
-| 容器化 | Docker | [README.md](./04-tech/02-backend/14-docker/README.md) |
-| 容器化 | Kubernetes | [README.md](./04-tech/02-backend/15-kubernetes/README.md) |
-| 网关/代理 | Nginx | [README.md](./04-tech/02-backend/16-nginx/README.md) |
-| 网关 | Gateway | [README.md](./04-tech/02-backend/17-gateway/README.md) |
-| 安全 | Security | [README.md](./04-tech/02-backend/18-security/README.md) |
-| 可观测性 | Logging | [README.md](./04-tech/02-backend/19-logging/README.md) |
-| 可观测性 | Monitoring | [README.md](./04-tech/02-backend/20-monitoring/README.md) |
+| 分类 | 技术 | 中文 | English |
+|------|------|------|---------|
+| 语言 | Java | [README.zh.md](./04-tech/02-backend/01-java/README.zh.md) | [README.en.md](./04-tech/02-backend/01-java/README.en.md) |
+| 框架 | Spring Boot | [README.zh.md](./04-tech/02-backend/02-spring-boot/README.zh.md) | [README.en.md](./04-tech/02-backend/02-spring-boot/README.en.md) |
+| 框架 | Spring Cloud | [README.zh.md](./04-tech/02-backend/03-spring-cloud/README.zh.md) | [README.en.md](./04-tech/02-backend/03-spring-cloud/README.en.md) |
+| ORM | MyBatis | [README.zh.md](./04-tech/02-backend/04-mybatis/README.zh.md) | [README.en.md](./04-tech/02-backend/04-mybatis/README.en.md) |
+| 数据库 | MySQL | [README.zh.md](./04-tech/02-backend/05-mysql/README.zh.md) | [README.en.md](./04-tech/02-backend/05-mysql/README.en.md) |
+| 缓存 | Redis | [README.zh.md](./04-tech/02-backend/06-redis/README.zh.md) | [README.en.md](./04-tech/02-backend/06-redis/README.en.md) |
+| 消息队列 | RocketMQ | [README.zh.md](./04-tech/02-backend/07-rocketmq/README.zh.md) | [README.en.md](./04-tech/02-backend/07-rocketmq/README.en.md) |
+| 消息队列 | Kafka | [README.zh.md](./04-tech/02-backend/08-kafka/README.zh.md) | [README.en.md](./04-tech/02-backend/08-kafka/README.en.md) |
+| 搜索 | Elasticsearch | [README.zh.md](./04-tech/02-backend/09-elasticsearch/README.zh.md) | [README.en.md](./04-tech/02-backend/09-elasticsearch/README.en.md) |
+| 微服务 | Nacos | [README.zh.md](./04-tech/02-backend/10-nacos/README.zh.md) | [README.en.md](./04-tech/02-backend/10-nacos/README.en.md) |
+| 微服务 | Sentinel | [README.zh.md](./04-tech/02-backend/11-sentinel/README.zh.md) | [README.en.md](./04-tech/02-backend/11-sentinel/README.en.md) |
+| 微服务 | Seata | [README.zh.md](./04-tech/02-backend/12-seata/README.zh.md) | [README.en.md](./04-tech/02-backend/12-seata/README.en.md) |
+| 可观测性 | SkyWalking | [README.zh.md](./04-tech/02-backend/13-skywalking/README.zh.md) | [README.en.md](./04-tech/02-backend/13-skywalking/README.en.md) |
+| 容器化 | Docker | [README.zh.md](./04-tech/02-backend/14-docker/README.zh.md) | [README.en.md](./04-tech/02-backend/14-docker/README.en.md) |
+| 容器化 | Kubernetes | [README.zh.md](./04-tech/02-backend/15-kubernetes/README.zh.md) | [README.en.md](./04-tech/02-backend/15-kubernetes/README.en.md) |
+| 网关/代理 | Nginx | [README.zh.md](./04-tech/02-backend/16-nginx/README.zh.md) | [README.en.md](./04-tech/02-backend/16-nginx/README.en.md) |
+| 网关 | Gateway | [README.zh.md](./04-tech/02-backend/17-gateway/README.zh.md) | [README.en.md](./04-tech/02-backend/17-gateway/README.en.md) |
+| 安全 | Security | [README.zh.md](./04-tech/02-backend/18-security/README.zh.md) | [README.en.md](./04-tech/02-backend/18-security/README.en.md) |
+| 可观测性 | Logging | [README.zh.md](./04-tech/02-backend/19-logging/README.zh.md) | [README.en.md](./04-tech/02-backend/19-logging/README.en.md) |
+| 可观测性 | Monitoring | [README.zh.md](./04-tech/02-backend/20-monitoring/README.zh.md) | [README.en.md](./04-tech/02-backend/20-monitoring/README.en.md) |
 
 ---
 
@@ -227,7 +225,7 @@ aidlc-prompts/
 在与 AI 对话时，引用相关的最佳实践文档：
 
 ```
-请参考 03-dlc/04-testing/01-unit/README.md 帮我编写单元测试
+请参考 03-dlc/04-testing/01-unit/README.zh.md 帮我编写单元测试
 ```
 
 ### 方式二：智能引导
