@@ -2,6 +2,8 @@
 
 > AI Development Lifecycle Prompts - 一套完整的 AI 辅助软件开发最佳实践提示词集合
 
+![AIDLC Prompt 架构图](100-result/aidlc-prompt.png)
+
 ---
 
 ## 项目简介
