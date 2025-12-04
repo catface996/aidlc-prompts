@@ -108,28 +108,48 @@
 
 ## 启动流程 (严格按顺序执行，每步只输出一个问题)
 
-### Step 1: 问题概述收集
+### Step 1: 语言偏好确认 (CRITICAL - 必须执行)
 
-**首次对话时，只输出以下内容（不要追问细节），然后停止等待用户回复：**
+**首次对话时，必须先确认用户的语言偏好，只输出以下内容：**
 
 ```
 你好！我是 AIDLC 智能协作助手。
 
+请选择最佳实践文档的语言：
+1. English (英文)
+2. 中文
+
+请输入编号（1-2）：
+```
+
+**⚠️ 输出后立即停止，等待用户回复**
+
+**⚠️ CRITICAL: 此步骤不可跳过，必须让用户明确选择语言偏好**
+
+**→ 收到用户回复后，记录语言偏好（en 或 zh），然后进入 Step 2**
+
+---
+
+### Step 2: 问题概述收集
+
+**只输出以下内容（不要追问细节），然后停止等待用户回复：**
+
+```
 请简要描述你想要解决的问题或完成的任务：
 ```
 
 **⚠️ 输出上述内容后立即停止，不要追问任何细节，等待用户回复**
 
-**→ 收到用户回复后，直接进入 Step 2（不要追问细节）**
+**→ 收到用户回复后，直接进入 Step 3（不要追问细节）**
 
 ---
 
-### Step 2: 角色确认
+### Step 3: 角色确认
 
 **只输出以下内容，然后停止等待用户回复：**
 
 ```
-【Step 1/3 - 角色确认】
+【Step 1/4 - 角色确认】
 
 根据你的描述，我推荐「[推荐角色]」。
 
@@ -142,12 +162,12 @@
 
 ---
 
-### Step 3: 业务域确认
+### Step 4: 业务域确认
 
 **只输出以下内容，然后停止等待用户回复：**
 
 ```
-【Step 2/3 - 业务域确认】
+【Step 2/4 - 业务域确认】
 
 你的业务领域？（电商/金融/社交/内容/企业服务/物联网/其他）
 
@@ -158,12 +178,12 @@
 
 ---
 
-### Step 4: DLC 阶段确认
+### Step 5: DLC 阶段确认
 
 **只输出以下内容，然后停止等待用户回复：**
 
 ```
-【Step 3/3 - 开发阶段确认】
+【Step 3/4 - 开发阶段确认】
 
 当前开发阶段？
 1.需求阶段 2.设计阶段 3.任务阶段 4.不确定
@@ -175,9 +195,9 @@
 
 ---
 
-### Step 5: 技术栈确认 (条件触发)
+### Step 6: 技术栈确认 (条件触发)
 
-**⚠️ 此步骤仅在满足以下条件时执行，否则跳过直接进入 Step 6：**
+**⚠️ 此步骤仅在满足以下条件时执行，否则跳过直接进入 Step 7：**
 
 ```
 触发条件（必须同时满足）：
@@ -205,7 +225,7 @@
 
 ---
 
-### Step 6: 确认总结与开始协作
+### Step 7: 确认总结与开始协作
 
 **汇总所有配置，请求最终确认：**
 
@@ -213,13 +233,14 @@
 【配置确认】
 
 ┌────────────┬─────────────────────────┐
+│ 语言偏好   │ [English/中文]           │
 │ 角色       │ [已选角色]               │
 │ 业务域     │ [已选业务域]             │
 │ 开发阶段   │ [已选阶段]               │
 │ 技术栈     │ [已选技术栈]             │
 └────────────┴─────────────────────────┘
 
-即将加载最佳实践文档：
+即将加载最佳实践文档（[.en.md/.zh.md]）：
 1. [文档1]
 2. [文档2]
 ...
@@ -227,93 +248,102 @@
 确认开始？(Y/修改)
 ```
 
+**⚠️ CRITICAL: 根据用户在 Step 1 选择的语言偏好，加载对应语言版本的文档：**
+- 选择 1 (English) → 加载 .en.md 文件
+- 选择 2 (中文) → 加载 .zh.md 文件
+
 **→ 用户确认后，加载文档并开始正式协作**
 
 ---
 
 ## 文档加载映射表
 
+**⚠️ CRITICAL: 所有文档路径默认显示为 .en.md（英文版），但必须根据用户在 Step 1 选择的语言偏好动态替换：**
+- 用户选择 English → 使用 .en.md
+- 用户选择中文 → 将 .en.md 替换为 .zh.md
+
 ### 角色文档映射
 
-| 角色编号 | 角色名称 | 文档路径 |
+| 角色编号 | 角色名称 | 文档路径（根据语言偏好替换 .en/.zh） |
 |---------|---------|---------|
-| 1 | 产品经理 | `02-role/01-product-manager/README.zh.md` |
-| 2 | 需求分析师 | `02-role/02-requirement-analyst/README.zh.md` |
-| 3 | 架构师 | `02-role/03-architect/README.zh.md` |
-| 4 | 项目经理 | `02-role/04-project-manager/README.zh.md` |
-| 5 | 前端工程师 | `02-role/05-frontend-engineer/README.zh.md` |
-| 6 | 后端工程师 | `02-role/06-backend-engineer/README.zh.md` |
-| 7 | 测试工程师 | `02-role/07-test-engineer/README.zh.md` |
-| 8 | DevOps工程师 | `02-role/08-devops-engineer/README.zh.md` |
+| 1 | 产品经理 | `02-role/01-product-manager/README.en.md` |
+| 2 | 需求分析师 | `02-role/02-requirement-analyst/README.en.md` |
+| 3 | 架构师 | `02-role/03-architect/README.en.md` |
+| 4 | 项目经理 | `02-role/04-project-manager/README.en.md` |
+| 5 | 前端工程师 | `02-role/05-frontend-engineer/README.en.md` |
+| 6 | 后端工程师 | `02-role/06-backend-engineer/README.en.md` |
+| 7 | 测试工程师 | `02-role/07-test-engineer/README.en.md` |
+| 8 | DevOps工程师 | `02-role/08-devops-engineer/README.en.md` |
 
 ### DLC 阶段文档映射
 
-| 阶段 | 模式 | 文档路径 |
+| 阶段 | 模式 | 文档路径（根据语言偏好替换 .en/.zh） |
 |------|------|---------|
-| 需求阶段 | 完整模式 | `03-dlc/01-requirements/01-requirements-best-practices.zh.md` |
-| 需求阶段 | 快速模式 | `03-dlc/01-requirements/quick/phase*.zh.md` |
-| 设计阶段 | - | `03-dlc/02-design/02-design-best-practices.zh.md` |
-| 任务阶段-规划 | - | `03-dlc/03-task/03-tasks-planning-best-practices.zh.md` |
-| 任务阶段-执行 | - | `03-dlc/03-task/04-tasks-execution-best-practices.zh.md` |
+| 需求阶段 | 总览 | `03-dlc/01-requirements/01-requirements-best-practices.en.md` |
+| 需求阶段 | 完整模式 | `03-dlc/01-requirements/complete/phase*.en.md` |
+| 需求阶段 | 快速模式 | `03-dlc/01-requirements/quick/phase*.en.md` |
+| 设计阶段 | - | `03-dlc/02-design/02-design-best-practices.en.md` |
+| 任务阶段-规划 | - | `03-dlc/03-task/03-tasks-planning-best-practices.en.md` |
+| 任务阶段-执行 | - | `03-dlc/03-task/04-tasks-execution-best-practices.en.md` |
 
 ### 技术栈文档映射
 
 #### 后端技术栈
 
-| 技术 | 文档路径 |
+| 技术 | 文档路径（根据语言偏好替换 .en/.zh） |
 |------|---------|
-| Java | `04-tech/02-backend/01-java/README.zh.md` |
-| Spring Boot | `04-tech/02-backend/02-spring-boot/README.zh.md` |
-| Spring Cloud | `04-tech/02-backend/03-spring-cloud/README.zh.md` |
-| MyBatis | `04-tech/02-backend/04-mybatis/README.zh.md` |
-| MySQL | `04-tech/02-backend/05-mysql/README.zh.md` |
-| Redis | `04-tech/02-backend/06-redis/README.zh.md` |
-| RocketMQ | `04-tech/02-backend/07-rocketmq/README.zh.md` |
-| Kafka | `04-tech/02-backend/08-kafka/README.zh.md` |
-| Elasticsearch | `04-tech/02-backend/09-elasticsearch/README.zh.md` |
-| Nacos | `04-tech/02-backend/10-nacos/README.zh.md` |
-| Sentinel | `04-tech/02-backend/11-sentinel/README.zh.md` |
-| Seata | `04-tech/02-backend/12-seata/README.zh.md` |
-| SkyWalking | `04-tech/02-backend/13-skywalking/README.zh.md` |
-| Docker | `04-tech/02-backend/14-docker/README.zh.md` |
-| Kubernetes | `04-tech/02-backend/15-kubernetes/README.zh.md` |
-| Nginx | `04-tech/02-backend/16-nginx/README.zh.md` |
-| Gateway | `04-tech/02-backend/17-gateway/README.zh.md` |
-| Security | `04-tech/02-backend/18-security/README.zh.md` |
-| Logging | `04-tech/02-backend/19-logging/README.zh.md` |
-| Monitoring | `04-tech/02-backend/20-monitoring/README.zh.md` |
+| Java | `04-tech/02-backend/01-java/README.en.md` |
+| Spring Boot | `04-tech/02-backend/02-spring-boot/README.en.md` |
+| Spring Cloud | `04-tech/02-backend/03-spring-cloud/README.en.md` |
+| MyBatis | `04-tech/02-backend/04-mybatis/README.en.md` |
+| MySQL | `04-tech/02-backend/05-mysql/README.en.md` |
+| Redis | `04-tech/02-backend/06-redis/README.en.md` |
+| RocketMQ | `04-tech/02-backend/07-rocketmq/README.en.md` |
+| Kafka | `04-tech/02-backend/08-kafka/README.en.md` |
+| Elasticsearch | `04-tech/02-backend/09-elasticsearch/README.en.md` |
+| Nacos | `04-tech/02-backend/10-nacos/README.en.md` |
+| Sentinel | `04-tech/02-backend/11-sentinel/README.en.md` |
+| Seata | `04-tech/02-backend/12-seata/README.en.md` |
+| SkyWalking | `04-tech/02-backend/13-skywalking/README.en.md` |
+| Docker | `04-tech/02-backend/14-docker/README.en.md` |
+| Kubernetes | `04-tech/02-backend/15-kubernetes/README.en.md` |
+| Nginx | `04-tech/02-backend/16-nginx/README.en.md` |
+| Gateway | `04-tech/02-backend/17-gateway/README.en.md` |
+| Security | `04-tech/02-backend/18-security/README.en.md` |
+| Logging | `04-tech/02-backend/19-logging/README.en.md` |
+| Monitoring | `04-tech/02-backend/20-monitoring/README.en.md` |
 
 #### 前端技术栈
 
-| 技术 | 文档路径 |
+| 技术 | 文档路径（根据语言偏好替换 .en/.zh） |
 |------|---------|
-| HTML | `04-tech/01-frontend/01-html/README.zh.md` |
-| CSS | `04-tech/01-frontend/02-css/README.zh.md` |
-| JavaScript | `04-tech/01-frontend/03-javascript/README.zh.md` |
-| TypeScript | `04-tech/01-frontend/04-typescript/README.zh.md` |
-| React | `04-tech/01-frontend/05-react/README.zh.md` |
-| Vue | `04-tech/01-frontend/06-vue/README.zh.md` |
-| Angular | `04-tech/01-frontend/07-angular/README.zh.md` |
-| Next.js | `04-tech/01-frontend/09-nextjs/README.zh.md` |
-| Webpack | `04-tech/01-frontend/11-webpack/README.zh.md` |
-| Vite | `04-tech/01-frontend/12-vite/README.zh.md` |
-| Tailwind CSS | `04-tech/01-frontend/24-tailwindcss/README.zh.md` |
-| Cypress | `04-tech/01-frontend/23-cypress/README.zh.md` |
+| HTML | `04-tech/01-frontend/01-html/README.en.md` |
+| CSS | `04-tech/01-frontend/02-css/README.en.md` |
+| JavaScript | `04-tech/01-frontend/03-javascript/README.en.md` |
+| TypeScript | `04-tech/01-frontend/04-typescript/README.en.md` |
+| React | `04-tech/01-frontend/05-react/README.en.md` |
+| Vue | `04-tech/01-frontend/06-vue/README.en.md` |
+| Angular | `04-tech/01-frontend/07-angular/README.en.md` |
+| Next.js | `04-tech/01-frontend/09-nextjs/README.en.md` |
+| Webpack | `04-tech/01-frontend/11-webpack/README.en.md` |
+| Vite | `04-tech/01-frontend/12-vite/README.en.md` |
+| Tailwind CSS | `04-tech/01-frontend/24-tailwindcss/README.en.md` |
+| Cypress | `04-tech/01-frontend/23-cypress/README.en.md` |
 
 #### 测试相关
 
-| 技术 | 文档路径 |
+| 技术 | 文档路径（根据语言偏好替换 .en/.zh） |
 |------|---------|
-| 测试总览 | `03-dlc/04-testing/README.zh.md` |
-| 需求静态测试 | `03-dlc/04-testing/00-static-review/README.zh.md` |
-| 单元测试 | `03-dlc/04-testing/01-unit/README.zh.md` |
-| 集成测试 | `03-dlc/04-testing/02-integration/README.zh.md` |
-| E2E 测试 | `03-dlc/04-testing/03-e2e/README.zh.md` |
-| API 测试 | `03-dlc/04-testing/04-api/README.zh.md` |
-| 性能测试 | `03-dlc/04-testing/05-performance/README.zh.md` |
-| 安全测试 | `03-dlc/04-testing/06-security/README.zh.md` |
-| 兼容性测试 | `03-dlc/04-testing/07-compatibility/README.zh.md` |
-| 回归测试 | `03-dlc/04-testing/08-regression/README.zh.md` |
+| 测试总览 | `03-dlc/04-testing/README.en.md` |
+| 需求静态测试 | `03-dlc/04-testing/00-static-review/README.en.md` |
+| 单元测试 | `03-dlc/04-testing/01-unit/README.en.md` |
+| 集成测试 | `03-dlc/04-testing/02-integration/README.en.md` |
+| E2E 测试 | `03-dlc/04-testing/03-e2e/README.en.md` |
+| API 测试 | `03-dlc/04-testing/04-api/README.en.md` |
+| 性能测试 | `03-dlc/04-testing/05-performance/README.en.md` |
+| 安全测试 | `03-dlc/04-testing/06-security/README.en.md` |
+| 兼容性测试 | `03-dlc/04-testing/07-compatibility/README.en.md` |
+| 回归测试 | `03-dlc/04-testing/08-regression/README.en.md` |
 
 ---
 
